@@ -14,7 +14,7 @@ You should use Lightkurve.org to pull new data for this project. As time goes on
 ### Cite if you use this code
 If you want to use this code in your work, please cite in the comments of your code where it came from in case anyone else stumbles upon your repo, they should know where it came from. If you plan to use this code in any scholastic or professional work or wish to publish, you must fully cite the following papers and sources:
 
-<a href='http://SpaceLab.space>This work has been put together by the efforts of the Data Science and Engineering Teams at SpaceLab.space</a> with the inspiration, guidence, and foundational work provided by:
+<a href='http://SpaceLab.space'>This work has been put together by the efforts of the Data Science and Engineering Teams at SpaceLab.space</a> with the inspiration, guidence, and foundational work provided by:
 
 <a href='https://iopscience.iop.org/article/10.3847/2041-8213/aaf23b'>Scientific Domain Knowledge Improves Exoplanet Transit Classification with Deep Learning</a>, Ansdell et al, -The Astronomical Journal Letters
 
