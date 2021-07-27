@@ -1,7 +1,7 @@
 # new_world_disco
 A working repo where we are iterating on working CNN's that discover exoplanets. This New World Discovery repository should be forked by anyone interested in playing with Convolutional Neural Networks and the lightkurve.org python library to learn about and find new exoplanets.
 
-<img src='https://i.imgur.com/KVj6cyw.png' style="float:left; height: 250px">
+<img src='https://i.imgur.com/KVj6cyw.png' style="float:center; height: 125px">
 
 ### Background
 This work is built on the PyTorch code created by Dr. Megan Ansdell et al at <a href='https://frontierdevelopmentlab.org/'>NASA's Frontier Development Lab</a> in 2018 <a href='https://gitlab.com/frontierdevelopmentlab/exoplanets/exonet-pytorch'>(link to gitlab code repo)</a>
