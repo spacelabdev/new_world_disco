@@ -6,7 +6,7 @@ A working repo where we are iterating on working CNN's that discover exoplanets.
 ### Background
 This work is built on the PyTorch code created by Dr. Megan Ansdell et al at <a href='https://frontierdevelopmentlab.org/'>NASA's Frontier Development Lab</a> in 2018 <a href='https://gitlab.com/frontierdevelopmentlab/exoplanets/exonet-pytorch'>(link to gitlab code repo)</a>
 
-Her work was an improvement upon the prior work of Dr. Andrew Vanderburg and Chris Shallue et all from 2016 <a href='https://github.com/cshallue/exoplanet-ml'>(link to github code) repo</a>
+Her work was an improvement upon the prior work of Dr. Andrew Vanderburg and Chris Shallue et all from 2016 <a href='https://github.com/cshallue/exoplanet-ml'>(link to github code repo)</a>
 
 ### Datasets
 The dataset to start out with if you are using the exonet.py program can be found <a href='https://drive.google.com/file/d/1N6bA2rahvV5kcOGmJnTA5gl_Thno7hTh/view'>here</a>. You should download and unzip these files in a nearby directory for easy use.
