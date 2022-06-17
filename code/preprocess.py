@@ -10,6 +10,7 @@ TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
 DEFAULT_TESS_ID = '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
+OUTPUT_FOLDER = '.'
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
 global_bin_width_factor = 201
@@ -55,3 +56,17 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
     lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor).normalize() - 1
     lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
+    import pdb; pdb.set_trace()
+
+    # export
+    export_lightcurve(lc_local, f"{tess_id}_local")
+    export_lightcurve(lc_global, f"{tess_id}_global")
+
+
+def export_lightcurve(lc, filename):
+    lc.to_csv(f"{filename}.csv")
+    np.save(np.array(f"{filename}_flux.npy", lc['flux']))
+
+
+if __name__ == "__main__":
+    preprocess_tess_data()
