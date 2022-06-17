@@ -56,7 +56,6 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
     lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor).normalize() - 1
     lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
-    import pdb; pdb.set_trace()
 
     # export
     export_lightcurve(lc_local, f"{tess_id}_local")
