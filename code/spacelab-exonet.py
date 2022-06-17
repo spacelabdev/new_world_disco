@@ -105,8 +105,6 @@ x_train = np.asarray(x_train, dtype=object)
 y_train = np.asarray(y_train, dtype=object)
 
 
-import pdb; pdb.set_trace()
-
 print(x_val.shape)
 print(x_val[0][0].shape)
 print(x_val[0][1].shape)
@@ -494,7 +492,6 @@ BATCH_SIZE = 32
 
 x_features = [[x[0] for x in x2_train], [x[1] for x in x2_train], [x[2] for x in x2_train], [x[3] for x in x2_train], [x[4] for x in x2_train]]
 history = extranetxs.fit(x=x_features, y=y2_train, batch_size=BATCH_SIZE, epochs=100)
-import pdb; pdb.set_trace()
 
 print(history)
 val_features = [[x[0] for x in x2_val], [x[1] for x in x2_val], [x[2] for x in x2_val], [x[3] for x in x2_val], [x[4] for x in x2_val]]
