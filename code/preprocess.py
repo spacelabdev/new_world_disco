@@ -63,8 +63,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
 
 def export_lightcurve(lc, filename):
-    lc.to_csv(f"{filename}.csv")
-    np.save(np.array(f"{filename}_flux.npy", lc['flux']))
+    lc.to_csv(f"{filename}.csv", overwrite=True)
+    np.save(f"{filename}_flux.npy", np.array(lc['flux']))
 
 
 if __name__ == "__main__":
