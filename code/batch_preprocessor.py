@@ -18,6 +18,12 @@ def fetch_tic_list(num_tic = -1):
     Returns: List of length num_tois filled with TOI identifiers.
     """
 
+    # Validate input
+    if type(num_tic) != int:
+        raise TypeError(f"Received non-integer input {num_tic}.\nExpected integer > 0.")
+    if num_tic < -1 or num_tic == 0:
+        raise ValueError("The number of requested TICs is invalid.\nExpected integer > 0.")
+
     # Check to see if local file exists and load from url and save locally if it doesn't
     if os.path.exists(TOI_CATALOG_FILENAME):
         toi_df = pd.read_csv(TOI_CATALOG_FILENAME)
@@ -29,8 +35,6 @@ def fetch_tic_list(num_tic = -1):
 
     if num_tic == -1 or num_tic >= len(tics):
         return tics
-    elif num_tic < -1 or num_tic == 0:
-        raise ValueError("The number of requested TICs is invalid.\nExpected integer > 0.")
     else:
         return tics.iloc[:num_tic]
 
