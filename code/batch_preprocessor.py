@@ -5,18 +5,23 @@ import io
 
 import pandas as pd
 import requests
+import datetime
+from dateutil.parser import parse as parsedate
 
 TOI_CATALOG_URL = 'https://archive.stsci.edu/missions/tess/catalogs/toi/tois.csv'
 TOI_CATALOG_FILENAME = "tois.csv"
 
 def fetch_tic_list(num_tic = -1):
     """
-    Method to load list of TESS Input Catalog identifier (TICs). If the TOI catalog does 
-    not exist locally, this method will load it from the url and save a local copy.
+    Method to load list of TESS Input Catalog identifier (TICs). If the TOI 
+    catalog does not exist locally, this method will load it from the url and 
+    save a local copy.
 
-    Input: num_tic = number of TOIs requested (if unspecified, returns entire catalog).
+    Input: num_tic = number of TOIs requested (if unspecified, returns entirety).
     Returns: List of length num_tois filled with TOI identifiers.
     """
+
+    download_flag = False
 
     # Validate input
     if type(num_tic) != int:
@@ -24,13 +29,30 @@ def fetch_tic_list(num_tic = -1):
     if num_tic < -1 or num_tic == 0:
         raise ValueError("The number of requested TICs is invalid.\nExpected integer > 0.")
 
-    # Check to see if local file exists and load from url and save locally if it doesn't
+    # If local files exist, ensure they're up to date.
+    # If local files don't exist, we need to download from the url.
     if os.path.exists(TOI_CATALOG_FILENAME):
-        toi_df = pd.read_csv(TOI_CATALOG_FILENAME)
-    else:
-        toi_df = pd.read_csv(TOI_CATALOG_URL, header=4)
-        toi_df.to_csv(TOI_CATALOG_FILENAME)
+        r_head = requests.head(TOI_CATALOG_URL)
+        last_update = parsedate(r_head.headers['Last-Modified']).astimezone()
+        last_download = file_time = datetime.datetime.fromtimestamp(
+            os.path.getmtime(TOI_CATALOG_FILENAME)).astimezone()
 
+        if (last_update > last_download):
+            print("Newer TOI Catalog available.")
+            download_flag = True
+    else:
+        download_flag = True
+
+    if download_flag:
+        print("Downloading TOI Catalog...")
+        res = requests.get(TOI_CATALOG_URL)
+        tic_data_raw = res.content
+        with open(TOI_CATALOG_FILENAME, 'wb+') as f:
+            f.write(tic_data_raw)
+        print("Download Complete!")
+
+    toi_df = pd.read_csv(TOI_CATALOG_FILENAME, header=4)
+        
     tics = toi_df['TIC']
 
     if num_tic == -1 or num_tic >= len(tics):
@@ -40,13 +62,13 @@ def fetch_tic_list(num_tic = -1):
 
 def batch_preprocessor(num_tic):
     """
-    Method to preprocess a user-defined number of TESS data objects from the TOI catalog.
+    Method to preprocess a user-defined number of TESS data objects from the 
+    TOI catalog.
 
     TODOs:   1. Try to parallelize. Currently very slow.
-             2. In some of the CSVs created there are NaNs. Discard or is that expected?
-             3. Suppress warnings? Many warnings about incompatible columns.
-             4. More to do with preprocess.preprocess_tess_data, but saving these files
-                in a separate data folder would be ideal.
+             2. Suppress warnings? Many warnings about incompatible columns.
+             3. More to do with preprocess.preprocess_tess_data, but saving 
+                these files in a separate data folder would be ideal.
                 
     Input: num_tic = number of TOIs requested.
     Returns: number of TOIs successfully processed.
