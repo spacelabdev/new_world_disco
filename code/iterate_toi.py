@@ -2,8 +2,8 @@ from preprocess import preprocess_tess_data
 import lightkurve
 import pandas as pd
 
-df=pd.read_csv("tois.csv",skiprows=4)
-
+df=pd.read_csv("tois.csv", skiprows=4)
+print(df)
 for tic in df["TIC"][:10]:
   try:
     preprocess_tess_data(tic)
