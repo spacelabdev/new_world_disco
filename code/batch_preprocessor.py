@@ -8,7 +8,7 @@ from dateutil.parser import parse as parsedate
 import preprocess
 
 TOI_CATALOG_URL = 'https://archive.stsci.edu/missions/tess/catalogs/toi/tois.csv'
-TOI_CATALOG_FILENAME = "tois.csv"
+TOI_CATALOG_FILENAME = "./tois.csv"
 
 def fetch_tic_list(num_tic = -1):
     """

@@ -55,6 +55,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     # Fetch period and duration data from caltech exofop for tess
     data_df = fetch_tess_data_df()
+
     period, duration = data_df[data_df['TIC ID'] == int(tess_id)]['Period (days)'].item(),  data_df[data_df['TIC ID'] == int(tess_id)]['Duration (hours)'].item()
     t0 = data_df[data_df['TIC ID'] == int(tess_id)]['Epoch (BJD)'].item() - BJD_TO_BCTJD_DIFF
 
@@ -89,11 +90,15 @@ def export_lightcurve(lc, filename):
     Method to save lightcurve data as CSV and a NumPy array file (.npy) representing flux.
 
     Inputs: lc = lightcurve to be saved.
+            folder = folder in which to save file.
             filename = name of the file.
     """
 
-    lc.to_csv(f"{filename}.csv", overwrite=True)
-    np.save(f"{filename}_flux.npy", np.array(lc['flux']))
+    if not os.path.isdir('data'):
+        os.mkdir(os.path.join(os.getcwd(), 'data'))
+
+    lc.to_csv(f"./data/{filename}.csv", overwrite=True)
+    np.save(f"./data/{filename}_flux.npy", np.array(lc['flux']))
 
 
 if __name__ == "__main__":
