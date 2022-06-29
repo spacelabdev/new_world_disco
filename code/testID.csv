@@ -1,6 +1,0 @@
-# TESS Object of Interest
-# File Created: 2022-06-09
-# Sectors: S0001-S0051
-# Date of previous TOI list release: 2022-06-02
-Parameter Source Pipeline,Detection Pipeline(s),TIC,Full TOI ID,TOI Disposition,TIC Right Ascension,TIC Declination,TIC Right Ascension 2015.5,TIC Declination 2015.5,TMag Value,TMag Uncertainty,Epoch Value,Epoch Error,Orbital Period Value,Orbital Period Error,Transit Duration Value,Transit Duration Error,Transit Depth Value,Transit Depth Error,Sectors,Public Comment,Surface Gravity Value,Surface Gravity Uncertainty,Signal ID,Star Radius Value,Star Radius Error,Planet Radius Value,Planet Radius Error,Planet Equilibrium Temperature (K) Value,Effective Temperature Value,Effective Temperature Uncertainty,Effective Stellar Flux Value,Signal-to-noise,Centroid Offset,TFOP Master,TFOP SG1a,TFOP SG1b,TFOP SG2,TFOP SG3,TFOP SG4,TFOP SG5,Alerted,Updated
-qlp-s34-faintsearch,QLP,412521892,4775.01,PC,110.7848556,-22.4396994,110.784874055,-22.4397444887,11.529,0.012,2248.8286138,0.0014355,2.4732088,6.1e-06,2.244,0.725,2740.0,9.42897,"[7, 34]",found in faint-star QLP search,4.04,0.09,1,1.87,0.09,15.4982,0.982332,1826.0,6643.0,145.6,1846.66,9.0,false,3,4,3,3,4,4,4,2021-12-21 00:46:24+00,2021-12-20 18:27:47+00
