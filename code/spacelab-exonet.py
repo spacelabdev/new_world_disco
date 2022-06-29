@@ -4,7 +4,7 @@ import glob as glob
 import torch
 from torch.utils.data import Dataset
 
-filepath = '/home/ubuntu/spacelab/exonet/data'
+filepath = 'code\exonet_inputs'
 
 # try the default kepler data loader in exonet.py
 # reference: https://gitlab.com/frontierdevelopmentlab/exoplanets/exonet-pytorch/-/blob/master/exonet.py
