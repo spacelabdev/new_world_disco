@@ -4,7 +4,7 @@ import glob as glob
 import torch
 from torch.utils.data import Dataset
 
-filepath = 'code\exonet_inputs'
+filepath = './exonet_inputs'
 
 # try the default kepler data loader in exonet.py
 # reference: https://gitlab.com/frontierdevelopmentlab/exoplanets/exonet-pytorch/-/blob/master/exonet.py
@@ -115,17 +115,17 @@ print(y_val.shape)
 
 from numpy import save
 # save the validation data that was loaded
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_x_data.npy", x_val)
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_y_data.npy", y_val)
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_x_data.npy", x_train)
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_y_data.npy", y_train)
+save("./exonet_outputs/val_x_data.npy", x_val)
+save("./exonet_outputs/val_y_data.npy", y_val)
+save("./exonet_outputs/train_x_data.npy", x_train)
+save("./exonet_outputs/train_y_data.npy", y_train)
 
 from numpy import load
 
-x2_val = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_x_data.npy", allow_pickle=True)
-y2_val = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_y_data.npy", allow_pickle=True)
-x2_train = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_x_data.npy", allow_pickle=True)
-y2_train = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_y_data.npy", allow_pickle=True)
+x2_val = load("./exonet_outputs/val_x_data.npy", allow_pickle=True)
+y2_val = load("./exonet_outputs/val_y_data.npy", allow_pickle=True)
+x2_train = load("./exonet_outputs/train_x_data.npy", allow_pickle=True)
+y2_train = load("./exonet_outputs/train_y_data.npy", allow_pickle=True)
 
 print(x2_val.shape)
 print(y2_val.shape)
@@ -499,7 +499,7 @@ val_output = extranetxs.predict(val_features)
 
 val_gt = y2_val.astype(None).ravel()
 val_output = val_output.astype(None).ravel()
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_y_output.npy", val_ouput)
+save("./exonet_outputs/train_y_output.npy", val_output)
 
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
