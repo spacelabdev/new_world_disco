@@ -34,7 +34,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-
 ########################################
 ########### PARSE ARGUMENTS ############
 ########################################
@@ -78,7 +77,7 @@ class KeplerDataLoader(Dataset):
         self.flist_global = np.sort(glob.glob(os.path.join(filepath, '*global.npy')))
         self.flist_local = np.sort(glob.glob(os.path.join(filepath, '*local.npy')))
         self.flist_info = np.sort(glob.glob(os.path.join(filepath, '*info.npy')))
-        
+
         ### list of whitened centroid files
         self.flist_global_cen = np.sort(glob.glob(os.path.join(filepath, '*global_cen_w.npy')))
         self.flist_local_cen = np.sort(glob.glob(os.path.join(filepath, '*local_cen_w.npy')))
