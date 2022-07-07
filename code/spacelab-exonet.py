@@ -3,8 +3,10 @@ import numpy as np
 import glob as glob
 import torch
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 
-filepath = '/home/ubuntu/spacelab/exonet/data'
+
+filepath = '/Users/danielmao/spaceLab/new_world_disco/code/exonet_inputs/'
 
 # try the default kepler data loader in exonet.py
 # reference: https://gitlab.com/frontierdevelopmentlab/exoplanets/exonet-pytorch/-/blob/master/exonet.py
@@ -25,6 +27,7 @@ class KeplerDataLoader(Dataset):
         self.flist_local = np.sort(glob.glob(os.path.join(filepath, '*local.npy')))
         self.flist_info = np.sort(glob.glob(os.path.join(filepath, '*info.npy')))
         
+    
         ### list of whitened centroid files
         self.flist_global_cen = np.sort(glob.glob(os.path.join(filepath, '*global_cen_w.npy')))
         self.flist_local_cen = np.sort(glob.glob(os.path.join(filepath, '*local_cen_w.npy')))
@@ -56,76 +59,79 @@ class KeplerDataLoader(Dataset):
 kepler_train_data = KeplerDataLoader(filepath=os.path.join(filepath, 'train'))
 kepler_val_data = KeplerDataLoader(filepath=os.path.join(filepath, 'test'))
 
+
 # look through some of the data
-count = 0
-print("len(kepler_val_data)", len(kepler_val_data))
-for data in kepler_val_data:
-    print("len(data):", len(data))
-    print("len(data[0]):", len(data[0]))
-    print("shape data[0][0]: (data_local):", data[0][0].shape)
-    print("shape data[0][1]: (data_global):", data[0][1].shape)
-    print("shape data[0][2]: (data_local_cen):", data[0][2].shape)
-    print("shape data[0][3]: (data_global_cen):", data[0][3].shape)
-    print("shape data[0][4]: (data_info[6:]):", data[0][4].shape)
-    print("data[1]:", data[1])
-    print()
+# count = 0
+# print("len(kepler_val_data)", len(kepler_val_data))
+# print(kepler_val_data[0])
+# for data in kepler_val_data:
+#     print("len(data):", len(data))
+#     print("len(data[0]):", len(data[0]))
+#     print("shape data[0][0]: (data_local):", data[0][0].shape)
+#     print("shape data[0][1]: (data_global):", data[0][1].shape)
+#     print("shape data[0][2]: (data_local_cen):", data[0][2].shape)
+#     print("shape data[0][3]: (data_global_cen):", data[0][3].shape)
+#     print("shape data[0][4]: (data_info[6:]):", data[0][4].shape)
+#     print("data[1]:", data[1])
+    
 
-    count += 1
-    if count == 1:
-        break
+#     count += 1
+#     if count == 1:
+#         break
 
-# unload all of the data from pytorch dataset to numpy and save
-x_val = []
-y_val = []
+# # unload all of the data from pytorch dataset to numpy and save
+# x_val = []
+# y_val = []
 
-curr = 0
-total = len(kepler_val_data)
-print("Loading validation data:")
-for x_data, y_data in kepler_val_data:
-    print(curr, "/", total)
-    curr += 1
-    x_val.append(x_data)
-    y_val.append(y_data)
+# curr = 0
+# total = len(kepler_val_data)
+# print("Loading validation data:")
+# for x_data, y_data in kepler_val_data:
+    
+#     print(curr, "/", total)
+#     curr += 1
+#     x_val.append(x_data)
+#     y_val.append(y_data)
 
-x_train = []
-y_train = []
-print("Loading training data:")
-curr = 0
-total = len(kepler_train_data)
-for x_data, y_data in kepler_train_data:
-    print(curr, "/", total)
-    curr += 1
-    x_train.append(x_data)
-    y_train.append(y_data)
-
-
-x_val = np.asarray(x_val, dtype=object)
-y_val = np.asarray(y_val, dtype=object)
-x_train = np.asarray(x_train, dtype=object)
-y_train = np.asarray(y_train, dtype=object)
+# x_train = []
+# y_train = []
+# print("Loading training data:")
+# curr = 0
+# total = len(kepler_train_data)
+# for x_data, y_data in kepler_train_data:
+#     print(curr, "/", total)
+#     curr += 1
+#     x_train.append(x_data)
+#     y_train.append(y_data)
 
 
-print(x_val.shape)
-print(x_val[0][0].shape)
-print(x_val[0][1].shape)
-print(x_val[0][2].shape)
-print(x_val[0][3].shape)
-print(x_val[0][4].shape)
-print(y_val.shape)
+# x_val = np.asarray(x_val, dtype=object)
+# y_val = np.asarray(y_val, dtype=np.float32)
+# x_train = np.asarray(x_train, dtype=object)
+# y_train = np.asarray(y_train, dtype=np.float32)
 
-from numpy import save
-# save the validation data that was loaded
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_x_data.npy", x_val)
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_y_data.npy", y_val)
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_x_data.npy", x_train)
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_y_data.npy", y_train)
+
+# print(x_val.shape)
+# print(x_val[0][0].shape)
+# print(x_val[0][1].shape)
+# print(x_val[0][2].shape)
+# print(x_val[0][3].shape)
+# print(x_val[0][4].shape)
+# print(y_val.shape)
+
+# from numpy import save
+# # save the validation data that was loaded
+# save("/Users/danielmao/spaceLab/new_world_disco/code/outputs/val_x_data.npy", x_val)
+# save("/Users/danielmao/spaceLab/new_world_disco/code/outputs/val_y_data.npy", y_val)
+# save("/Users/danielmao/spaceLab/new_world_disco/code/outputs/train_x_data.npy", x_train)
+# save("/Users/danielmao/spaceLab/new_world_disco/code/outputs/train_y_data.npy", y_train)
 
 from numpy import load
 
-x2_val = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_x_data.npy", allow_pickle=True)
-y2_val = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/val_y_data.npy", allow_pickle=True)
-x2_train = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_x_data.npy", allow_pickle=True)
-y2_train = load("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_y_data.npy", allow_pickle=True)
+x2_val = load("/Users/danielmao/spaceLab/new_world_disco/code/outputs/val_x_data.npy", allow_pickle=True)
+y2_val = load("/Users/danielmao/spaceLab/new_world_disco/code/outputs/val_y_data.npy", allow_pickle=True)
+x2_train = load("/Users/danielmao/spaceLab/new_world_disco/code/outputs/train_x_data.npy", allow_pickle=True)
+y2_train = load("/Users/danielmao/spaceLab/new_world_disco/code/outputs/train_y_data.npy", allow_pickle=True)
 
 print(x2_val.shape)
 print(y2_val.shape)
@@ -214,7 +220,7 @@ fc_global_model.summary()
 print()
 print("Output shape:", FC_GLOBAL_OUT_SHAPE)
 
-plot_model(fc_global_model, to_file='fc_global_model.jpg', show_shapes=True, show_layer_names=True)
+#plot_model(fc_global_model, to_file='fc_global_model.jpg', show_shapes=True, show_layer_names=True)
 
 # fully connected global network used for Extranet
 def create_fc_local():
@@ -244,7 +250,7 @@ fc_local_model, FC_LOCAL_OUT_SHAPE = create_fc_local()
 fc_local_model.summary()
 print("\nOutput shape:", FC_LOCAL_OUT_SHAPE)
 
-plot_model(fc_local_model, to_file='fc_local_model.jpg', show_shapes=True, show_layer_names=True)
+#plot_model(fc_local_model, to_file='fc_local_model.jpg', show_shapes=True, show_layer_names=True)
 
 def create_final_layer(in_shape=(16586,)):
     # fully connected layers that combine local + global and does binary classification
@@ -269,7 +275,7 @@ def create_final_layer(in_shape=(16586,)):
 final_layer_model = create_final_layer()
 final_layer_model.summary()
 
-plot_model(final_layer_model, to_file='final_layer.jpg', show_shapes=True, show_layer_names=True)
+#plot_model(final_layer_model, to_file='final_layer.jpg', show_shapes=True, show_layer_names=True)
 
 def ExtranetModelCopy():
     '''
@@ -359,7 +365,7 @@ extranet = ExtranetModelCopy()
 
 extranet.summary()
 
-plot_model(extranet, to_file='extranet.jpg', show_shapes=True, show_layer_names=True)
+#plot_model(extranet, to_file='extranet.jpg', show_shapes=True, show_layer_names=True)
 
 # fully connected global network used for ExtranetXS
 def create_fc_global():
@@ -482,24 +488,37 @@ def ExtranetXSModelCopy():
 extranetxs = ExtranetXSModelCopy()
 extranetxs.summary()
 
-plot_model(extranetxs, to_file='extranetxs.jpg', show_shapes=True, show_layer_names=True)
+#plot_model(extranetxs, to_file='extranetxs.jpg', show_shapes=True, show_layer_names=True)
 
 NUM_EPOCHS = 100
 BATCH_SIZE = 32
 
 #training_batch = x2_val[:32]
 #extranetxs.train_on_batch(x=[[x[0] for x in training_batch], [x[1] for x in training_batch], [x[2] for x in training_batch], [x[3] for x in training_batch], [x[4] for x in training_batch]] , y=y2_val[:32])
+x_feature_list1=[x[0] for x in x2_train]
+x_feature_list2=[x[1] for x in x2_train]
+x_feature_list3=[x[2] for x in x2_train]
+x_feature_list4=[x[3] for x in x2_train]
+x_feature_list5=[x[4] for x in x2_train]
+x_features = [np.asarray(x_feature_list1), np.asarray(x_feature_list2), np.asarray(x_feature_list3), np.asarray(x_feature_list4),np.asarray(x_feature_list5)]
 
-x_features = [[x[0] for x in x2_train], [x[1] for x in x2_train], [x[2] for x in x2_train], [x[3] for x in x2_train], [x[4] for x in x2_train]]
+
 history = extranetxs.fit(x=x_features, y=y2_train, batch_size=BATCH_SIZE, epochs=100)
 
 print(history)
-val_features = [[x[0] for x in x2_val], [x[1] for x in x2_val], [x[2] for x in x2_val], [x[3] for x in x2_val], [x[4] for x in x2_val]]
+val_feature_list1=[x[0] for x in x2_val]
+val_feature_list2=[x[1] for x in x2_val]
+val_feature_list3=[x[2] for x in x2_val]
+val_feature_list4=[x[3] for x in x2_val]
+val_feature_list5=[x[4] for x in x2_val]
+
+val_features = [np.asarray(val_feature_list1),np.asarray(val_feature_list2),np.asarray(val_feature_list3),np.asarray(val_feature_list4),np.asarray(val_feature_list5)]
 val_output = extranetxs.predict(val_features)
 
 val_gt = y2_val.astype(None).ravel()
 val_output = val_output.astype(None).ravel()
-save("/home/ubuntu/spacelab/exonet/outputs/tensorflow_20210731/train_y_output.npy", val_ouput)
+from numpy import save
+save("/Users/danielmao/spaceLab/new_world_disco/code/outputs/train_y_output.npy", val_output)
 
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
@@ -534,6 +553,6 @@ for n, nval in enumerate(thresh):
     prec_thresh[n] = precision_score(val_gt, pred_byte)
     recall_thresh[n] = recall_score(val_gt, pred_byte)
     print("   thresh = {0:0.2f}, precision = {1:0.2f}, recall = {2:0.2f}".format(thresh[n], prec_thresh[n], recall_thresh[n]))
-    tn, fp, fn, tp = confusion_matrix(gt_val_final, pred_byte).ravel()
+    tn, fp, fn, tp = confusion_matrix(val_gt, pred_byte).ravel()
     print("      TN = {0:0}, FP = {1:0}, FN = {2:0}, TP = {3:0}".format(tn, fp, fn, tp))
 
