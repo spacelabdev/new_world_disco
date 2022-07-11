@@ -3,8 +3,10 @@ import numpy as np
 import glob as glob
 import torch
 from torch.utils.data import Dataset
+import pydot
+import graphviz
 
-filepath = './exonet_inputs'
+filepath = './data'
 
 # try the default kepler data loader in exonet.py
 # reference: https://gitlab.com/frontierdevelopmentlab/exoplanets/exonet-pytorch/-/blob/master/exonet.py
@@ -83,6 +85,8 @@ total = len(kepler_val_data)
 print("Loading validation data:")
 for x_data, y_data in kepler_val_data:
     print(curr, "/", total)
+    if not isinstance(y_data, np.float64):
+        print(f'ERROR: {y_data}')
     curr += 1
     x_val.append(x_data)
     y_val.append(y_data)
@@ -94,41 +98,51 @@ curr = 0
 total = len(kepler_train_data)
 for x_data, y_data in kepler_train_data:
     print(curr, "/", total)
+    if not isinstance(y_data, np.float64):
+        print(f'ERROR: {y_data}')
     curr += 1
     x_train.append(x_data)
     y_train.append(y_data)
 
 
 x_val = np.asarray(x_val, dtype=object)
-y_val = np.asarray(y_val, dtype=object)
+y_val = np.asarray(y_val, dtype=np.float32)
 x_train = np.asarray(x_train, dtype=object)
-y_train = np.asarray(y_train, dtype=object)
+y_train = np.asarray(y_train, dtype=np.float32)
 
 
-print(x_val.shape)
-print(x_val[0][0].shape)
-print(x_val[0][1].shape)
-print(x_val[0][2].shape)
-print(x_val[0][3].shape)
-print(x_val[0][4].shape)
-print(y_val.shape)
+
+print(f'x_val shape: {x_val.shape}')
+print(f'x_val[0][0] shape: {x_val[0][0].shape}')
+print(f'x_val[0][1] shape: {x_val[0][1].shape}')
+print(f'x_val[0][2] shape: {x_val[0][2].shape}')
+print(f'x_val[0][3] shape: {x_val[0][3].shape}')
+print(f'x_val[0][4] shape: {x_val[0][4].shape}')
+print(f'y_val shape: {y_val.shape}')
+
+print(x_val[0][0])
+print(x_val[0][1])
+print(x_val[0][2])
+print(x_val[0][3])
+print(x_val[0][4])
 
 from numpy import save
 # save the validation data that was loaded
-save("./exonet_outputs/val_x_data.npy", x_val)
-save("./exonet_outputs/val_y_data.npy", y_val)
-save("./exonet_outputs/train_x_data.npy", x_train)
-save("./exonet_outputs/train_y_data.npy", y_train)
+save("./outputs/val_x_data.npy", x_val)
+save("./outputs/val_y_data.npy", y_val)
+save("./outputs/train_x_data.npy", x_train)
+save("./outputs/train_y_data.npy", y_train)
 
 from numpy import load
 
-x2_val = load("./exonet_outputs/val_x_data.npy", allow_pickle=True)
-y2_val = load("./exonet_outputs/val_y_data.npy", allow_pickle=True)
-x2_train = load("./exonet_outputs/train_x_data.npy", allow_pickle=True)
-y2_train = load("./exonet_outputs/train_y_data.npy", allow_pickle=True)
+x2_val = load("./outputs/val_x_data.npy", allow_pickle=True)
+y2_val = load("./outputs/val_y_data.npy", allow_pickle=True)
+x2_train = load("./outputs/train_x_data.npy", allow_pickle=True)
+y2_train = load("./outputs/train_y_data.npy", allow_pickle=True)
 
-print(x2_val.shape)
-print(y2_val.shape)
+
+# print(x2_val.shape)
+# print(y2_val.shape)
 
 # imports for Functional Keras model
 import tensorflow
@@ -144,28 +158,28 @@ from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Reshape
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.utils import plot_model
+# from tensorflow.keras.utils import plot_model
 
 # Define static input shapes
 data = kepler_val_data[0]
 
-print("Input shapes to the Extranet model:")
+# print("Input shapes to the Extranet model:")
 X_LOCAL_SHAPE = data[0][0].shape
-print("X_LOCAL_SHAPE:", X_LOCAL_SHAPE)
+# print("X_LOCAL_SHAPE:", X_LOCAL_SHAPE)
 X_GLOBAL_SHAPE = data[0][1].shape
-print("X_GLOBAL_SHAPE:", X_GLOBAL_SHAPE)
+# print("X_GLOBAL_SHAPE:", X_GLOBAL_SHAPE)
 X_LOCAL_CEN_SHAPE = data[0][2].shape
-print("X_LOCAL_CEN_SHAPE:", X_LOCAL_CEN_SHAPE)
+# print("X_LOCAL_CEN_SHAPE:", X_LOCAL_CEN_SHAPE)
 X_GLOBAL_CEN_SHAPE = data[0][3].shape
-print("X_GLOBAL_CEN_SHAPE:", X_GLOBAL_CEN_SHAPE)
+# print("X_GLOBAL_CEN_SHAPE:", X_GLOBAL_CEN_SHAPE)
 X_STARPARS_SHAPE = data[0][4].shape
-print("X_STARPARS_SHAPE:", X_STARPARS_SHAPE)
-print("Label:", data[1])
+# print("X_STARPARS_SHAPE:", X_STARPARS_SHAPE)
+# print("Label:", data[1])
 
 FC_LOCAL_OUT_SHAPE = None
 FC_GLOBAL_OUT_SHAPE = None
 R_LEARN = 1e-5
-print("Adam optimizer learning rate:", R_LEARN)
+# print("Adam optimizer learning rate:", R_LEARN)
 
 # fully connected global network used for Extranet
 def create_fc_global():
@@ -214,7 +228,7 @@ fc_global_model.summary()
 print()
 print("Output shape:", FC_GLOBAL_OUT_SHAPE)
 
-plot_model(fc_global_model, to_file='fc_global_model.jpg', show_shapes=True, show_layer_names=True)
+# plot_model(fc_global_model, to_file='fc_global_model.jpg', show_shapes=True, show_layer_names=True)
 
 # fully connected global network used for Extranet
 def create_fc_local():
@@ -242,9 +256,9 @@ def create_fc_local():
 
 fc_local_model, FC_LOCAL_OUT_SHAPE = create_fc_local()
 fc_local_model.summary()
-print("\nOutput shape:", FC_LOCAL_OUT_SHAPE)
+# print("\nOutput shape:", FC_LOCAL_OUT_SHAPE)
 
-plot_model(fc_local_model, to_file='fc_local_model.jpg', show_shapes=True, show_layer_names=True)
+# plot_model(fc_local_model, to_file='fc_local_model.jpg', show_shapes=True, show_layer_names=True)
 
 def create_final_layer(in_shape=(16586,)):
     # fully connected layers that combine local + global and does binary classification
@@ -269,7 +283,7 @@ def create_final_layer(in_shape=(16586,)):
 final_layer_model = create_final_layer()
 final_layer_model.summary()
 
-plot_model(final_layer_model, to_file='final_layer.jpg', show_shapes=True, show_layer_names=True)
+# plot_model(final_layer_model, to_file='final_layer.jpg', show_shapes=True, show_layer_names=True)
 
 def ExtranetModelCopy():
     '''
@@ -298,17 +312,17 @@ def ExtranetModelCopy():
     x_global_all = Concatenate(axis=1)([x_global, x_global_cen])
     
     #checking the shape after concat
-    print("x_local_all.shape", x_local_all.shape)
-    print("x_global_all.shape", x_global_all.shape)
+#    print("x_local_all.shape", x_local_all.shape)
+#    print("x_global_all.shape", x_global_all.shape)
 
     # reshape the concatenated inputs - **unsure if this reshapes correctly along axis**
     x_local_all = Reshape(target_shape=(x_local_all.shape[1]//2, 2))(x_local_all)
     x_global_all = Reshape(target_shape=(x_global_all.shape[1]//2, 2))(x_global_all)
 
     #checking the shape after concat
-    print("\nShape after reshape")
-    print("x_local_all.shape", x_local_all.shape)
-    print("x_global_all.shape", x_global_all.shape)
+#    print("\nShape after reshape")
+#    print("x_local_all.shape", x_local_all.shape)
+#    print("x_global_all.shape", x_global_all.shape)
 
     # call corresponding models
     fc_global, _ = create_fc_global()
@@ -318,9 +332,9 @@ def ExtranetModelCopy():
     out_global = fc_global(x_global_all)
     out_local = fc_local(x_local_all)
 
-    print("\nShape after model outputs")
-    print("out_global.shape", out_global.shape)
-    print("out_local.shape", out_local.shape)
+#    print("\nShape after model outputs")
+#    print("out_global.shape", out_global.shape)
+#    print("out_local.shape", out_local.shape)
     
     # do global pooling
     '''
@@ -334,21 +348,21 @@ def ExtranetModelCopy():
     out_global = Flatten()(out_global)
     out_local = Flatten()(out_local)
 
-    print("\nShape after flatten outputs")
-    print("out_global.shape", out_global.shape)
-    print("out_local.shape", out_local.shape)
+#    print("\nShape after flatten outputs")
+#    print("out_global.shape", out_global.shape)
+#    print("out_local.shape", out_local.shape)
 
     # concatenate local, global and stellar params
     out = Concatenate()([out_global, out_local, x_star])
 
-    print("\nConcatenated out shape:", out.shape)
-    print("(Should be", out_global.shape[1], "global +", out_local.shape[1], "local +", x_star.shape[1], 'stellar params)')
+#    print("\nConcatenated out shape:", out.shape)
+#    print("(Should be", out_global.shape[1], "global +", out_local.shape[1], "local +", x_star.shape[1], 'stellar params)')
     # pass the flattened length to the input shape
     final_layer = create_final_layer(in_shape=(out.shape[1],)) # should be 16586
 
     out = final_layer(out)
 
-    print("\nShape of output after final layer:", out.shape)
+#    print("\nShape of output after final layer:", out.shape)
 
     model = Model([x_local, x_global, x_local_cen, x_global_cen, x_star], out, name='Extranet_model')
     opt = Adam(learning_rate=R_LEARN)
@@ -359,7 +373,7 @@ extranet = ExtranetModelCopy()
 
 extranet.summary()
 
-plot_model(extranet, to_file='extranet.jpg', show_shapes=True, show_layer_names=True)
+# plot_model(extranet, to_file='extranet.jpg', show_shapes=True, show_layer_names=True)
 
 # fully connected global network used for ExtranetXS
 def create_fc_global():
@@ -423,17 +437,17 @@ def ExtranetXSModelCopy():
     x_global_all = Concatenate(axis=1)([x_global, x_global_cen])
     
     #checking the shape after concat
-    print("x_local_all.shape", x_local_all.shape)
-    print("x_global_all.shape", x_global_all.shape)
+#    print("x_local_all.shape", x_local_all.shape)
+#    print("x_global_all.shape", x_global_all.shape)
 
     # reshape the concatenated inputs - **unsure if this reshapes correctly along axis**
     x_local_all = Reshape(target_shape=(x_local_all.shape[1]//2, 2))(x_local_all)
     x_global_all = Reshape(target_shape=(x_global_all.shape[1]//2, 2))(x_global_all)
 
     #checking the shape after concat
-    print("\nShape after reshape")
-    print("x_local_all.shape", x_local_all.shape)
-    print("x_global_all.shape", x_global_all.shape)
+#    print("\nShape after reshape")
+#    print("x_local_all.shape", x_local_all.shape)
+#    print("x_global_all.shape", x_global_all.shape)
 
     # call corresponding models
     fc_global, _ = create_fc_global()
@@ -443,36 +457,36 @@ def ExtranetXSModelCopy():
     out_global = fc_global(x_global_all)
     out_local = fc_local(x_local_all)
 
-    print("\nShape after model outputs")
-    print("out_global.shape", out_global.shape)
-    print("out_local.shape", out_local.shape)
+#    print("\nShape after model outputs")
+#    print("out_global.shape", out_global.shape)
+#    print("out_local.shape", out_local.shape)
     
     # do global pooling
     out_global = GlobalMaxPool1D() (out_global)
     out_local = GlobalMaxPool1D()(out_local)
-    print("out global shape after global pooling:", out_global.shape)
-    print("out local shape after global pooling:", out_local.shape)
+#    print("out global shape after global pooling:", out_global.shape)
+#    print("out local shape after global pooling:", out_local.shape)
     # skipping global pooling bc the dimensionality reduction doesnt make sense to me now
 
     # flatten the outputs
     out_global = Flatten()(out_global)
     out_local = Flatten()(out_local)
 
-    print("\nShape after flatten outputs")
-    print("out_global.shape", out_global.shape)
-    print("out_local.shape", out_local.shape)
+#    print("\nShape after flatten outputs")
+#    print("out_global.shape", out_global.shape)
+#    print("out_local.shape", out_local.shape)
 
     # concatenate local, global and stellar params
     out = Concatenate()([out_global, out_local, x_star])
 
-    print("\nConcatenated out shape:", out.shape)
-    print("(Should be", out_global.shape[1], "global +", out_local.shape[1], "local +", x_star.shape[1], 'stellar params)')
+#    print("\nConcatenated out shape:", out.shape)
+#    print("(Should be", out_global.shape[1], "global +", out_local.shape[1], "local +", x_star.shape[1], 'stellar params)')
     # pass the flattened length to the input shape
     final_layer = create_final_layer(in_shape=(out.shape[1],)) # should be 16586
 
     out = final_layer(out)
 
-    print("\nShape of output after final layer:", out.shape)
+#    print("\nShape of output after final layer:", out.shape)
 
     model = Model([x_local, x_global, x_local_cen, x_global_cen, x_star], out, name='ExtranetXS_model')
     opt = Adam(learning_rate=R_LEARN)
@@ -482,7 +496,7 @@ def ExtranetXSModelCopy():
 extranetxs = ExtranetXSModelCopy()
 extranetxs.summary()
 
-plot_model(extranetxs, to_file='extranetxs.jpg', show_shapes=True, show_layer_names=True)
+# plot_model(extranetxs, to_file='extranetxs.jpg', show_shapes=True, show_layer_names=True)
 
 NUM_EPOCHS = 100
 BATCH_SIZE = 32
@@ -490,16 +504,21 @@ BATCH_SIZE = 32
 #training_batch = x2_val[:32]
 #extranetxs.train_on_batch(x=[[x[0] for x in training_batch], [x[1] for x in training_batch], [x[2] for x in training_batch], [x[3] for x in training_batch], [x[4] for x in training_batch]] , y=y2_val[:32])
 
-x_features = [[x[0] for x in x2_train], [x[1] for x in x2_train], [x[2] for x in x2_train], [x[3] for x in x2_train], [x[4] for x in x2_train]]
+x_features = [[x[0] for x in x2_train], 
+              [x[1] for x in x2_train], 
+              [x[2] for x in x2_train], 
+              [x[3] for x in x2_train], 
+              [x[4] for x in x2_train]]
+print(x_features.shape)
 history = extranetxs.fit(x=x_features, y=y2_train, batch_size=BATCH_SIZE, epochs=100)
 
-print(history)
+#print(history)
 val_features = [[x[0] for x in x2_val], [x[1] for x in x2_val], [x[2] for x in x2_val], [x[3] for x in x2_val], [x[4] for x in x2_val]]
 val_output = extranetxs.predict(val_features)
 
 val_gt = y2_val.astype(None).ravel()
 val_output = val_output.astype(None).ravel()
-save("./exonet_outputs/train_y_output.npy", val_output)
+save("./outputs/train_y_output.npy", val_output)
 
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
@@ -516,7 +535,7 @@ print("\nCALCULATING METRICS...\n")
 
 ### calculate average precision & precision-recall curves
 AP = average_precision_score(val_gt, val_output, average=None)
-print("   average precision = {0:0.4f}\n".format(AP))
+# print("   average precision = {0:0.4f}\n".format(AP))
 
 ### calculate precision-recall curve
 P, R, _ = precision_recall_curve(val_gt, val_output)
