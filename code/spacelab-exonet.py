@@ -3,8 +3,8 @@ import numpy as np
 import glob as glob
 import torch
 from torch.utils.data import Dataset
-import pydot
-import graphviz
+# import pydot
+# import graphviz
 
 filepath = './data'
 
