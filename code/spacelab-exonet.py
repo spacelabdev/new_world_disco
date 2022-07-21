@@ -3,8 +3,8 @@ import numpy as np
 import glob as glob
 import torch
 from torch.utils.data import Dataset
-import pydot
-import graphviz
+#import pydot
+#import graphviz
 
 filepath = './data'
 
@@ -504,16 +504,20 @@ BATCH_SIZE = 32
 #training_batch = x2_val[:32]
 #extranetxs.train_on_batch(x=[[x[0] for x in training_batch], [x[1] for x in training_batch], [x[2] for x in training_batch], [x[3] for x in training_batch], [x[4] for x in training_batch]] , y=y2_val[:32])
 
-x_features = [[x[0] for x in x2_train], 
-              [x[1] for x in x2_train], 
-              [x[2] for x in x2_train], 
-              [x[3] for x in x2_train], 
-              [x[4] for x in x2_train]]
-print(x_features.shape)
+x_features = [np.array([x[0] for x in x2_train]), 
+              np.array([x[1] for x in x2_train]), 
+              np.array([x[2] for x in x2_train]), 
+              np.array([x[3] for x in x2_train]), 
+              np.array([x[4] for x in x2_train])]
+# print(x_features.shape)
 history = extranetxs.fit(x=x_features, y=y2_train, batch_size=BATCH_SIZE, epochs=100)
 
 #print(history)
-val_features = [[x[0] for x in x2_val], [x[1] for x in x2_val], [x[2] for x in x2_val], [x[3] for x in x2_val], [x[4] for x in x2_val]]
+val_features = [np.array([x[0] for x in x2_val]), 
+                np.array([x[1] for x in x2_val]), 
+                np.array([x[2] for x in x2_val]), 
+                np.array([x[3] for x in x2_val]), 
+                np.array([x[4] for x in x2_val])]
 val_output = extranetxs.predict(val_features)
 
 val_gt = y2_val.astype(None).ravel()
@@ -553,6 +557,6 @@ for n, nval in enumerate(thresh):
     prec_thresh[n] = precision_score(val_gt, pred_byte)
     recall_thresh[n] = recall_score(val_gt, pred_byte)
     print("   thresh = {0:0.2f}, precision = {1:0.2f}, recall = {2:0.2f}".format(thresh[n], prec_thresh[n], recall_thresh[n]))
-    tn, fp, fn, tp = confusion_matrix(gt_val_final, pred_byte).ravel()
+    tn, fp, fn, tp = confusion_matrix(val_gt, pred_byte).ravel()
     print("      TN = {0:0}, FP = {1:0}, FN = {2:0}, TP = {3:0}".format(tn, fp, fn, tp))
 
