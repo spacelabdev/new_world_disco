@@ -114,15 +114,23 @@ def export_lightcurve(lc, filename):
 ### Centroid Preprocessing
 # section 2.2 of https://arxiv.org/pdf/1810.13434.pdf describes how they normalized
 def normalize_centroid(centroid_data):
+    # normalize by subtracting median and dividing by standard deviation
     med = np.median(centroid_data)
     std = np.std(centroid_data)
     centroid_data -= med
     centroid_data /= std
 
 def get_mag(x, y):
+    # get magnitude as: sqrt(x^2 + y^2)
     return math.sqrt(x*x + y*y)
 
 def preprocess_centroid(lc_local, lc_global):
+    """
+    Method for preprocessing TESS centroid data
+
+    Input: local and global lightcurve objects (already pre-processed)
+    Output: local and global centroid position numpy arrays
+    """
     global_x = np.array([float(x/u.pix) for x in lc_global['sap_x']])
     global_y = np.array([float(y/u.pix) for y in lc_global['sap_y']])
     local_x = np.array([float(x/u.pix) for x in lc_local['sap_x']])
