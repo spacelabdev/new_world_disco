@@ -19,6 +19,13 @@ global_bin_width_factor = 201
 local_bin_width_factor = 61
 
 def fetch_tess_data_df():
+    """
+    Method to load TESS data. 
+
+    If data does not exist locally, it will be downloaded from
+    TESS_DATA_URL and saved locally.
+    """
+
     if os.path.isfile(LOCAL_DATA_FILE_NAME):
         return pd.read_csv(LOCAL_DATA_FILE_NAME)
     res = requests.get(TESS_DATA_URL)
@@ -28,19 +35,35 @@ def fetch_tess_data_df():
     return pd.read_csv(io.BytesIO(tess_data_raw))
 
 def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
+    """
+    Method for preprocessing TESS data.
+
+    Data preprocessing consists of 4 stages:
+        1. Outliers are removed.
+        2. The lightcurve is flattened and folded.
+        3. A global view of the lightcurve is generated.
+        4. A local view of the transit is generated.
+
+    After preprocessing, global and local views are saved to disk.
+
+    Input: tess_id = TESS Input Catalog (TIC) identifier.
+    """
+
+    # Download and stitch all lightcurve quarters together.
     id_string = f'TIC {tess_id}'
     q = lk.search_lightcurve(id_string)
     lcs = q.download_all()
     lc_raw = lcs.stitch()
 
-    # fetch period and duration data from caltech exofop for tess
+    # Fetch period and duration data from caltech exofop for tess
     data_df = fetch_tess_data_df()
+
     period, duration = data_df[data_df['TIC ID'] == int(tess_id)]['Period (days)'].item(),  data_df[data_df['TIC ID'] == int(tess_id)]['Duration (hours)'].item()
     t0 = data_df[data_df['TIC ID'] == int(tess_id)]['Epoch (BJD)'].item() - BJD_TO_BCTJD_DIFF
 
     lc_clean = lc_raw.remove_outliers(sigma=3)
 
-    # do the hacky masking from here: https://docs.lightkurve.org/tutorials/3-science-examples/exoplanets-machine-learning-preprocessing.html
+    # Do the hacky masking from here: https://docs.lightkurve.org/tutorials/3-science-examples/exoplanets-machine-learning-preprocessing.html
     temp_fold = lc_clean.fold(period, epoch_time=t0)
     fractional_duration = (duration / 24.0) / period
     phase_mask = np.abs(temp_fold.phase.value) < (fractional_duration * 1.5)
@@ -73,8 +96,19 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
 
 def export_lightcurve(lc, filename):
-    lc.to_csv(f"{OUTPUT_FOLDER+filename}.csv", overwrite=True)
-    np.save(f"{OUTPUT_FOLDER+filename}_flux.npy", np.array(lc['flux']))
+    """
+    Method to save lightcurve data as CSV and a NumPy array file (.npy) representing flux.
+
+    Inputs: lc = lightcurve to be saved.
+            folder = folder in which to save file.
+            filename = name of the file.
+    """
+
+    if not os.path.isdir('data'):
+        os.mkdir(os.path.join(os.getcwd(), 'data'))
+
+    lc.to_csv(f"./data/{filename}.csv", overwrite=True)
+    np.save(f"./data/{filename}_flux.npy", np.array(lc['flux']))
 
 
 ### Centroid Preprocessing
