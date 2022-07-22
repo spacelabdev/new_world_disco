@@ -118,7 +118,15 @@ def normalize_centroid(centroid_data):
     med = np.median(centroid_data)
     std = np.std(centroid_data)
     centroid_data -= med
+    if std == 0:
+        print("Error; normalize_centroid(): std == 0")
+        return
     centroid_data /= std
+
+    # TO DO
+    # "Moreover, we normalize the standard deviation of the centroid curves by that of the light curves"
+    # from 2.2 not implemented
+
 
 def get_mag(x, y):
     # get magnitude as: sqrt(x^2 + y^2)
@@ -131,14 +139,24 @@ def preprocess_centroid(lc_local, lc_global):
     Input: local and global lightcurve objects (already pre-processed)
     Output: local and global centroid position numpy arrays
     """
-    global_x = np.array([float(x/u.pix) for x in lc_global['sap_x']])
-    global_y = np.array([float(y/u.pix) for y in lc_global['sap_y']])
-    local_x = np.array([float(x/u.pix) for x in lc_local['sap_x']])
-    local_y = np.array([float(y/u.pix) for y in lc_local['sap_y']])
+    sap_global_condition = 'sap_x' in lc_global.columns and 'sap_y' in lc_global.columns
+    sap_local_condition = 'sap_x' in lc_local.columns and 'sap_y' in lc_local.columns
+    if sap_global_condition and sap_local_condition:
+        # remove the pix dimension
+        global_x = np.array([float(x/u.pix) for x in lc_global['sap_x']])
+        global_y = np.array([float(y/u.pix) for y in lc_global['sap_y']])
+        local_x = np.array([float(x/u.pix) for x in lc_local['sap_x']])
+        local_y = np.array([float(y/u.pix) for y in lc_local['sap_y']])
+    else:
+        # TO DO: check for centroid_row, centroid_col and do any preprocessing they might require
+        print("Error: preprocess_centroid(): No handling for centroid data not stored in sap_x, sap_y")
+        return
 
+    # compute r = sqrt(x^2 + y^2) for each centroid location
     local_cen = np.array([get_mag(x,y) for x, y in zip(local_x, local_y)])
     global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
 
+    # normalize by subtracting mean and dividing by standard deviation
     normalize_centroid(local_cen)
     normalize_centroid(global_cen)
 
