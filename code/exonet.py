@@ -1,6 +1,4 @@
 
-print('Exonet.py was created by Dr. Megan Andsdell et al')
-print('Starting exonet.py')
 ########################################
 ########### IMPORT PACKAGES ############
 ########################################
@@ -34,28 +32,6 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-
-########################################
-########### PARSE ARGUMENTS ############
-########################################
-
-### an example input to command line:
-### python exonet.py 225 64 1e-5 '/data/kepler/new' '/data_sata1/ensembling/test'
-
-### parse arguments
-parser = argparse.ArgumentParser()
-parser.add_argument("n_epochs", help="number of epochs to use for training", type=int)
-parser.add_argument("n_batches", help="number of matches to use for training", type=int)
-parser.add_argument("r_learn", help="learning rate for Adam optimizer", type=float)
-parser.add_argument("d_path", help="path to data (should contain folders named val, test, train")
-parser.add_argument("m_out", help="path for output model, files, and plots")
-parser.add_argument("--fixed_seed", help="set if wanting to fix the seed", action="store_true")
-parser.add_argument("--XS", help="use ExtranetXS model", action="store_true")
-args = parser.parse_args()
-
-### set manual seed
-if args.fixed_seed:
-    torch.cuda.manual_seed(42)
 
 
 ########################################
@@ -440,150 +416,175 @@ def train_model(n_epochs, kepler_data_loader, kepler_val_loader, model, criterio
     return epoch_train_loss, epoch_val_loss, epoch_val_acc, epoch_val_ap, final_val_pred, final_val_gt
 
 
-########################################
-############ TRAIN MODEL  ##############
-########################################
-
-### setup screen output
-print("\nTRAINING MODEL...\n")
-
-### initialize model; cuda puts it on GPU
-if args.XS:
-    model = ExtranetXSModel().cuda()
-else:
-    model = ExtranetModel().cuda()
-
-### learning rate
-lr  = args.r_learn
-
-### specify optimizer for learning to use for training
-optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-### specify loss function to use for training
-criterion = nn.BCELoss()
-
-### specify batch size to use for training
-batch_size = args.n_batches 
-
-### number of epochs to use for training
-n_epochs = args.n_epochs 
-
-### grab data using data loader
-kepler_train_data = KeplerDataLoader(filepath=os.path.join(args.d_path, 'train'))
-kepler_val_data = KeplerDataLoader(filepath=os.path.join(args.d_path, 'test'))
-kepler_data_loader = DataLoader(kepler_train_data, batch_size=batch_size, shuffle=True, num_workers=4)
-kepler_val_loader = DataLoader(kepler_val_data, batch_size=batch_size, shuffle=False, num_workers=4)
-
-### train model
-loss_train_epoch, loss_val_epoch, acc_val_epoch, ap_val_epoch, pred_val_final, gt_val_final  = train_model(n_epochs, kepler_data_loader, kepler_val_loader, model, criterion, optimizer)
 
 
-########################################
-####### CALCULATE STATISTICS ###########
-########################################
+if __name__ == '__main__':
+    print('Exonet.py was created by Dr. Megan Andsdell et al')
+    print('Starting exonet.py')  
+  
+    ########################################
+    ########### PARSE ARGUMENTS ############
+    ########################################
 
-### setup screen output
-print("\nCALCULATING METRICS...\n")
+    ### an example input to command line:
+    ### python exonet.py 225 64 1e-5 '/data/kepler/new' '/data_sata1/ensembling/test'
 
-### calculate average precision & precision-recall curves
-AP = average_precision_score(gt_val_final, pred_val_final, average=None)
-print("   average precision = {0:0.4f}\n".format(AP))
- 
-### calculate precision-recall curve
-P, R, _ = precision_recall_curve(gt_val_final, pred_val_final)
+    ### parse arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument("n_epochs", help="number of epochs to use for training", type=int)
+    parser.add_argument("n_batches", help="number of matches to use for training", type=int)
+    parser.add_argument("r_learn", help="learning rate for Adam optimizer", type=float)
+    parser.add_argument("d_path", help="path to data (should contain folders named val, test, train")
+    parser.add_argument("m_out", help="path for output model, files, and plots")
+    parser.add_argument("--fixed_seed", help="set if wanting to fix the seed", action="store_true")
+    parser.add_argument("--XS", help="use ExtranetXS model", action="store_true")
+    args = parser.parse_args()
 
-### calculate confusion matrix based on different thresholds 
-thresh = [0.5, 0.6, 0.7, 0.8, 0.9]
-prec_thresh, recall_thresh = np.zeros(len(thresh)), np.zeros(len(thresh))
-for n, nval in enumerate(thresh):
-    pred_byte = np.zeros(len(pred_val_final))
-    for i, val in enumerate(pred_val_final):
-        if val > nval:
-            pred_byte[i] = 1.0
-        else:
-            pred_byte[i] = 0.0
-    prec_thresh[n] = precision_score(gt_val_final, pred_byte)
-    recall_thresh[n] = recall_score(gt_val_final, pred_byte)
-    print("   thresh = {0:0.2f}, precision = {1:0.2f}, recall = {2:0.2f}".format(thresh[n], prec_thresh[n], recall_thresh[n]))
-    tn, fp, fn, tp = confusion_matrix(gt_val_final, pred_byte).ravel()
-    print("      TN = {0:0}, FP = {1:0}, FN = {2:0}, TP = {3:0}".format(tn, fp, fn, tp))
+    ### set manual seed
+    if args.fixed_seed:
+        torch.cuda.manual_seed(42)
+    ########################################
+    ############ TRAIN MODEL  ##############
+    ########################################
+
+    ### setup screen output
+    print("\nTRAINING MODEL...\n")
+
+    ### initialize model; cuda puts it on GPU
+    if args.XS:
+        model = ExtranetXSModel().cuda()
+    else:
+        model = ExtranetModel().cuda()
+
+    ### learning rate
+    lr  = args.r_learn
+
+    ### specify optimizer for learning to use for training
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    ### specify loss function to use for training
+    criterion = nn.BCELoss()
+
+    ### specify batch size to use for training
+    batch_size = args.n_batches 
+
+    ### number of epochs to use for training
+    n_epochs = args.n_epochs 
+
+    ### grab data using data loader
+    kepler_train_data = KeplerDataLoader(filepath=os.path.join(args.d_path, 'train'))
+    kepler_val_data = KeplerDataLoader(filepath=os.path.join(args.d_path, 'test'))
+    kepler_data_loader = DataLoader(kepler_train_data, batch_size=batch_size, shuffle=True, num_workers=4)
+    kepler_val_loader = DataLoader(kepler_val_data, batch_size=batch_size, shuffle=False, num_workers=4)
+
+    ### train model
+    loss_train_epoch, loss_val_epoch, acc_val_epoch, ap_val_epoch, pred_val_final, gt_val_final  = train_model(n_epochs, kepler_data_loader, kepler_val_loader, model, criterion, optimizer)
 
 
-########################################
-######### OUTPUT MODEL + STATS  ########
-########################################
+    ########################################
+    ####### CALCULATE STATISTICS ###########
+    ########################################
 
-### transform from loss per sample to loss per batch (multiple by batch size to compare to Chris')
-loss_train_batch = [x.item()* batch_size for x in loss_train_epoch]
-loss_val_batch = [x.item()* batch_size for x in loss_val_epoch]
+    ### setup screen output
+    print("\nCALCULATING METRICS...\n")
 
-### setup output
-run = 0
+    ### calculate average precision & precision-recall curves
+    AP = average_precision_score(gt_val_final, pred_val_final, average=None)
+    print("   average precision = {0:0.4f}\n".format(AP))
+     
+    ### calculate precision-recall curve
+    P, R, _ = precision_recall_curve(gt_val_final, pred_val_final)
 
-### output predictions & ground truth
-pt_fname = os.path.join(args.m_out, 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-pt.csv')
-while os.path.isfile(pt_fname):
-    run +=1
+    ### calculate confusion matrix based on different thresholds 
+    thresh = [0.5, 0.6, 0.7, 0.8, 0.9]
+    prec_thresh, recall_thresh = np.zeros(len(thresh)), np.zeros(len(thresh))
+    for n, nval in enumerate(thresh):
+        pred_byte = np.zeros(len(pred_val_final))
+        for i, val in enumerate(pred_val_final):
+            if val > nval:
+                pred_byte[i] = 1.0
+            else:
+                pred_byte[i] = 0.0
+        prec_thresh[n] = precision_score(gt_val_final, pred_byte)
+        recall_thresh[n] = recall_score(gt_val_final, pred_byte)
+        print("   thresh = {0:0.2f}, precision = {1:0.2f}, recall = {2:0.2f}".format(thresh[n], prec_thresh[n], recall_thresh[n]))
+        tn, fp, fn, tp = confusion_matrix(gt_val_final, pred_byte).ravel()
+        print("      TN = {0:0}, FP = {1:0}, FN = {2:0}, TP = {3:0}".format(tn, fp, fn, tp))
+
+
+    ########################################
+    ######### OUTPUT MODEL + STATS  ########
+    ########################################
+
+    ### transform from loss per sample to loss per batch (multiple by batch size to compare to Chris')
+    loss_train_batch = [x.item()* batch_size for x in loss_train_epoch]
+    loss_val_batch = [x.item()* batch_size for x in loss_val_epoch]
+
+    ### setup output
+    run = 0
+
+    ### output predictions & ground truth
     pt_fname = os.path.join(args.m_out, 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-pt.csv')
-df = pd.DataFrame({"gt" : gt_val_final, "pred" : pred_val_final})
-df.to_csv(pt_fname, index=False)
+    while os.path.isfile(pt_fname):
+        run +=1
+        pt_fname = os.path.join(args.m_out, 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-pt.csv')
+    df = pd.DataFrame({"gt" : gt_val_final, "pred" : pred_val_final})
+    df.to_csv(pt_fname, index=False)
 
-### output per-iteration values
-epochs_fname = os.path.join(args.m_out, 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-epoch.csv')
-df = pd.DataFrame({"loss_train":loss_train_batch, "loss_val":loss_val_batch, "acc_val":acc_val_epoch, "ap_val":ap_val_epoch})
-df.to_csv(epochs_fname, index=False)
+    ### output per-iteration values
+    epochs_fname = os.path.join(args.m_out, 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-epoch.csv')
+    df = pd.DataFrame({"loss_train":loss_train_batch, "loss_val":loss_val_batch, "acc_val":acc_val_epoch, "ap_val":ap_val_epoch})
+    df.to_csv(epochs_fname, index=False)
 
-### save model
-# the output path is joined twice with the output directory (possibly a bug)
-#model_fname = os.path.join(args.m_out, 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-model.pth')
-#torch.save(model.state_dict(), os.path.join(args.m_out, model_fname))
-model_fname = 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-model.pth'
-torch.save(model.state_dict(), os.path.join(args.m_out, model_fname))
-print("\nOUTPUTTING MODEL + RESULTS @ " + os.path.join(args.m_out, model_fname) + "\n")
-
-
-########################################
-################ MAKE PLOTS ############
-########################################
-
-### setup figure
-fig = plt.figure(figsize=(7, 7))
-ax = gridspec.GridSpec(2,2)
-ax.update(wspace = 0.4, hspace = 0.4)
-ax1 = plt.subplot(ax[0,0])
-ax2 = plt.subplot(ax[0,1])
-ax3 = plt.subplot(ax[1,0])
-ax4 = plt.subplot(ax[1,1])
-
-### plot precision-recall curve
-ax1.set_xlabel('Precision', fontsize=10, labelpad=10)
-ax1.set_ylabel('Recall', fontsize=10)
-ax1.set_xlim([0.0, 1.0])
-ax1.set_ylim([0.0, 1.0])
-ax1.plot(R, P, linewidth=3, color='black')
-
-### plot loss curve for training and validation sets
-ax2.set_xlabel('Epoch', fontsize=10, labelpad=10)
-ax2.set_ylabel('Loss', fontsize=10)
-ax2.set_xlim([0.0, n_epochs])
-ax2.set_ylim([0.0, np.max(loss_train_batch)*1.5])
-ax2.plot(np.arange(len(loss_train_batch)), loss_train_batch, linewidth=3, color='cadetblue')
-ax2.plot(np.arange(len(loss_val_batch)), loss_val_batch, linewidth=3, color='orangered')
-
-### plot average precision per epoch
-ax3.set_xlabel('Epoch', fontsize=10, labelpad=10)
-ax3.set_ylabel('Average Precision', fontsize=10)
-ax3.plot(np.arange(len(ap_val_epoch)), ap_val_epoch, linewidth=1.0, color='orangered')
-ax3.scatter(np.arange(len(ap_val_epoch)), ap_val_epoch, marker='o', edgecolor='orangered', facecolor='orangered', s=10, linewidth=0.5, alpha=0.5)
-
-### plot accuracy per epoch
-ax4.set_xlabel('Epoch', fontsize=10, labelpad=10)
-ax4.set_ylabel('Accuracy', fontsize=10)
-ax4.plot(np.arange(len(acc_val_epoch)), acc_val_epoch, color='orangered', linewidth=1.0)
-ax4.scatter(np.arange(len(acc_val_epoch)), acc_val_epoch, marker='o', edgecolor='orangered', facecolor='orangered', s=10, linewidth=0.5, alpha=0.5)
-
-### save plot
-plot_fname = 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-plot.pdf'
-plt.savefig(os.path.join(args.m_out, plot_fname), bbox_inches='tight', dpi=200, rastersized=True, alpha=True)
+    ### save model
+    # the output path is joined twice with the output directory (possibly a bug)
+    #model_fname = os.path.join(args.m_out, 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-model.pth')
+    #torch.save(model.state_dict(), os.path.join(args.m_out, model_fname))
+    model_fname = 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-lr' + str(lr) + '-model.pth'
+    torch.save(model.state_dict(), os.path.join(args.m_out, model_fname))
+    print("\nOUTPUTTING MODEL + RESULTS @ " + os.path.join(args.m_out, model_fname) + "\n")
 
 
+    ########################################
+    ################ MAKE PLOTS ############
+    ########################################
+
+    ### setup figure
+    fig = plt.figure(figsize=(7, 7))
+    ax = gridspec.GridSpec(2,2)
+    ax.update(wspace = 0.4, hspace = 0.4)
+    ax1 = plt.subplot(ax[0,0])
+    ax2 = plt.subplot(ax[0,1])
+    ax3 = plt.subplot(ax[1,0])
+    ax4 = plt.subplot(ax[1,1])
+
+    ### plot precision-recall curve
+    ax1.set_xlabel('Precision', fontsize=10, labelpad=10)
+    ax1.set_ylabel('Recall', fontsize=10)
+    ax1.set_xlim([0.0, 1.0])
+    ax1.set_ylim([0.0, 1.0])
+    ax1.plot(R, P, linewidth=3, color='black')
+
+    ### plot loss curve for training and validation sets
+    ax2.set_xlabel('Epoch', fontsize=10, labelpad=10)
+    ax2.set_ylabel('Loss', fontsize=10)
+    ax2.set_xlim([0.0, n_epochs])
+    ax2.set_ylim([0.0, np.max(loss_train_batch)*1.5])
+    ax2.plot(np.arange(len(loss_train_batch)), loss_train_batch, linewidth=3, color='cadetblue')
+    ax2.plot(np.arange(len(loss_val_batch)), loss_val_batch, linewidth=3, color='orangered')
+
+    ### plot average precision per epoch
+    ax3.set_xlabel('Epoch', fontsize=10, labelpad=10)
+    ax3.set_ylabel('Average Precision', fontsize=10)
+    ax3.plot(np.arange(len(ap_val_epoch)), ap_val_epoch, linewidth=1.0, color='orangered')
+    ax3.scatter(np.arange(len(ap_val_epoch)), ap_val_epoch, marker='o', edgecolor='orangered', facecolor='orangered', s=10, linewidth=0.5, alpha=0.5)
+
+    ### plot accuracy per epoch
+    ax4.set_xlabel('Epoch', fontsize=10, labelpad=10)
+    ax4.set_ylabel('Accuracy', fontsize=10)
+    ax4.plot(np.arange(len(acc_val_epoch)), acc_val_epoch, color='orangered', linewidth=1.0)
+    ax4.scatter(np.arange(len(acc_val_epoch)), acc_val_epoch, marker='o', edgecolor='orangered', facecolor='orangered', s=10, linewidth=0.5, alpha=0.5)
+
+    ### save plot
+    plot_fname = 'r' + str(run).zfill(2) + '-i' + str(n_epochs) + '-plot.pdf'
+    plt.savefig(os.path.join(args.m_out, plot_fname), bbox_inches='tight', dpi=200, rastersized=True, alpha=True)
