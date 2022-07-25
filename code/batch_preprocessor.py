@@ -54,12 +54,14 @@ def fetch_tic_list(num_tic = -1):
 
     tics = toi_df['TIC']
 
+    print(len(tics))
+
     if num_tic == -1 or num_tic >= len(tics):
         return tics
 
     return tics.iloc[:num_tic]
 
-def batch_preprocessor(num_tic):
+def batch_preprocessor(tics):
     """
     Method to preprocess a user-defined number of TESS data objects from the
     TOI catalog.
@@ -69,15 +71,17 @@ def batch_preprocessor(num_tic):
              3. More to do with preprocess.preprocess_tess_data, but saving
                 these files in a separate data folder would be ideal.
 
-    Input: num_tic = number of TOIs requested.
+    Input: tics = list of TICs.
     Returns: number of TOIs successfully processed.
     """
 
     num_processed = 0
 
-    tics = fetch_tic_list(num_tic)
+    num_tic = len(tics)
 
-    for tic in tics:
+
+    for i, tic in enumerate(tics):
+        print(f'{i+1}/{num_tic}')
         try:
             preprocess.preprocess_tess_data(tic)
             num_processed += 1
@@ -89,4 +93,6 @@ def batch_preprocessor(num_tic):
     return num_processed
 
 if __name__ == "__main__":
-    batch_preprocessor(10)
+        
+    tics = fetch_tic_list()
+    batch_preprocessor(tics)
