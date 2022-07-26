@@ -8,6 +8,8 @@ import pandas as pd
 import requests
 import math
 from astropy import units as u
+import warnings
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +58,6 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     Input: tess_id = TESS Input Catalog (TIC) identifier.
     """
 
-    if os.path.isfile(f'./data/{tess_id}_global_flux.npy'):
-        return
 
     # Download and stitch all lightcurve quarters together.
     id_string = f'TIC {tess_id}'
@@ -162,14 +162,14 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
         # export
-        export_lightcurve(lc_local, f"{tess_id}_local_0{i+1}")
-        export_lightcurve(lc_global, f"{tess_id}_global_0{i+1}")
+        export_lightcurve(lc_local, f"{tess_id}_0{i+1}_local")
+        export_lightcurve(lc_global, f"{tess_id}_0{i+1}_global")
 
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_info.npy", np.array(info))
+        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_info.npy", np.array(info))
 
         # export
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_local_cen.npy", local_cen)
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_global_cen.npy", global_cen)
+        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_local_cen.npy", local_cen)
+        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_global_cen.npy", global_cen)
 
 
 
@@ -197,7 +197,7 @@ def normalize_centroid(centroid_data):
     std = np.std(centroid_data)
     centroid_data -= med
     if std == 0:
-        print("Error; normalize_centroid(): std == 0")
+        logger.info("Error; normalize_centroid(): std == 0")
         return
     centroid_data /= std
 
@@ -227,7 +227,7 @@ def preprocess_centroid(lc_local, lc_global):
         local_y = np.array([float(y/u.pix) for y in lc_local['sap_y']])
     else:
         # TO DO: check for centroid_row, centroid_col and do any preprocessing they might require
-        print("Error: preprocess_centroid(): No handling for centroid data not stored in sap_x, sap_y")
+        logger.info("Error: preprocess_centroid(): No handling for centroid data not stored in sap_x, sap_y")
         return
 
     # compute r = sqrt(x^2 + y^2) for each centroid location
