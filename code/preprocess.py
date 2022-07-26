@@ -6,6 +6,8 @@ import lightkurve as lk
 import numpy as np
 import pandas as pd
 import requests
+import math
+from astropy import units as u
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +19,7 @@ TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
 DEFAULT_TESS_ID = '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
-OUTPUT_FOLDER = '.'
+OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
 global_bin_width_factor = 201
@@ -87,15 +89,6 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # [6]Teff, [7]logg, [8]metallicity, [9]mass, [10]radius, [11]density
         info = np.full((12,), np.nan)
 
-        print(threshold_crossing_events[[
-            'Epoch (BJD)',
-            'TFOPWG Disposition',
-            'Stellar Eff Temp (K)',
-            'Stellar log(g) (cm/s^2)',
-            'Stellar Metallicity',
-            'Stellar Mass (M_Sun)',
-            'Stellar Radius (R_Sun)']])
-
         info[0] = tess_id
         info[1] = i + 1
         info[2] = period
@@ -162,17 +155,22 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
             return
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
 
-        # print(lc_local.dtype.names)
-    
 
-    
+        # print(lc_local.dtype.names)
+
+        # add centroid preprocessing
+        local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
+        
         # export
         export_lightcurve(lc_local, f"{tess_id}_local_0{i+1}")
         export_lightcurve(lc_global, f"{tess_id}_global_0{i+1}")
-        export_info(info, f"{tess_id}_0{i+1}")
 
-def export_info(info, filename):
-    np.save(f"./data/{filename}_info.npy", np.array(info))
+        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_info.npy", np.array(info))
+
+        # export
+        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_local_cen.npy", local_cen)
+        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_global_cen.npy", global_cen)
+
 
 
 def export_lightcurve(lc, filename):
@@ -184,12 +182,63 @@ def export_lightcurve(lc, filename):
             filename = name of the file.
     """
 
-    if not os.path.isdir('data'):
-        os.mkdir(os.path.join(os.getcwd(), 'data'))
+    if not os.path.isdir(OUTPUT_FOLDER):
+        os.mkdir(os.path.join(os.getcwd(), OUTPUT_FOLDER))
 
-#    lc.to_csv(f"./data/{filename}.csv", overwrite=True)
-    np.save(f"./data/{filename}_flux.npy", np.array(lc['flux']))
+#   lc.to_csv(f"./data/{filename}.csv", overwrite=True)
+    np.save(f"{OUTPUT_FOLDER+str(filename)}_flux.npy", np.array(lc['flux']))
 
+
+### Centroid Preprocessing
+# section 2.2 of https://arxiv.org/pdf/1810.13434.pdf describes how they normalized
+def normalize_centroid(centroid_data):
+    # normalize by subtracting median and dividing by standard deviation
+    med = np.median(centroid_data)
+    std = np.std(centroid_data)
+    centroid_data -= med
+    if std == 0:
+        print("Error; normalize_centroid(): std == 0")
+        return
+    centroid_data /= std
+
+    # TO DO
+    # "Moreover, we normalize the standard deviation of the centroid curves by that of the light curves"
+    # from 2.2 not implemented
+
+
+def get_mag(x, y):
+    # get magnitude as: sqrt(x^2 + y^2)
+    return math.sqrt(x*x + y*y)
+
+def preprocess_centroid(lc_local, lc_global):
+    """
+    Method for preprocessing TESS centroid data
+
+    Input: local and global lightcurve objects (already pre-processed)
+    Output: local and global centroid position numpy arrays
+    """
+    sap_global_condition = 'sap_x' in lc_global.columns and 'sap_y' in lc_global.columns
+    sap_local_condition = 'sap_x' in lc_local.columns and 'sap_y' in lc_local.columns
+    if sap_global_condition and sap_local_condition:
+        # remove the pix dimension
+        global_x = np.array([float(x/u.pix) for x in lc_global['sap_x']])
+        global_y = np.array([float(y/u.pix) for y in lc_global['sap_y']])
+        local_x = np.array([float(x/u.pix) for x in lc_local['sap_x']])
+        local_y = np.array([float(y/u.pix) for y in lc_local['sap_y']])
+    else:
+        # TO DO: check for centroid_row, centroid_col and do any preprocessing they might require
+        print("Error: preprocess_centroid(): No handling for centroid data not stored in sap_x, sap_y")
+        return
+
+    # compute r = sqrt(x^2 + y^2) for each centroid location
+    local_cen = np.array([get_mag(x,y) for x, y in zip(local_x, local_y)])
+    global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
+
+    # normalize by subtracting mean and dividing by standard deviation
+    normalize_centroid(local_cen)
+    normalize_centroid(global_cen)
+
+    return local_cen, global_cen
 
 if __name__ == "__main__":
     preprocess_tess_data()
