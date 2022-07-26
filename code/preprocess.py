@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 import math
 from astropy import units as u
-import warnings
+
 
 
 logger = logging.getLogger(__name__)
@@ -87,6 +87,9 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         # info contains: [0]tic, [1]tce, [2]period, [3]epoch, [4]duration, [5]label,
         # [6]Teff, [7]logg, [8]metallicity, [9]mass, [10]radius, [11]density
+        # TODO: Ansdell et al describe normalizing all of the stellar parameters across the entire
+        #       dataset. This should be easy to do given all but one of the stellar parameters
+        #       exist in the dataframe.
         info = np.full((12,), np.nan)
 
         info[0] = tess_id
@@ -109,6 +112,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         info[9] = threshold_crossing_events['Stellar Mass (M_Sun)'].item()
         info[10] = threshold_crossing_events['Stellar Radius (R_Sun)'].item()
         
+        # density is not included in the original dataframe so we'll need to download it
+        # TODO: try adding density for each TIC to the dataframe.
         stellar_params_link = f'https://exofop.ipac.caltech.edu/tess/download_planet.php?id={tess_id}&output=csv'
 
         densities = pd.read_csv(stellar_params_link, sep='|')['Fitted Stellar Density (g/cm3)']
