@@ -219,7 +219,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
             out = OUTPUT_FOLDER
 
         # export
-        export_lightcurve(lc_local, f"{out+str(tess_id)}_0{int(info[1)]}_local")
+        export_lightcurve(lc_local, f"{out+str(tess_id)}_0{int(info[1])}_local")
         export_lightcurve(lc_global, f"{out+str(tess_id)}_0{int(info[1])}_global")
 
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_info.npy", np.array(info))
