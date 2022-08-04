@@ -184,7 +184,7 @@ def add_gaussian_noise(lc):
     mu = np.nanmean(lc.flux)
     std = np.nanstd(lc.flux)
     noise = np.random.normal(mu, std, size = len(lc.flux))
-    lc[np.isnan(lc.flux)] = 0
+    lc.flux[np.isnan(lc.flux)] = np.nanmedian(lc.flux)
     lc.flux += noise
     
     return lc
