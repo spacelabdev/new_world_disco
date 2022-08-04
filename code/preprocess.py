@@ -61,10 +61,29 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     # Download and stitch all lightcurve quarters together.
     id_string = f'TIC {tess_id}'
+
+    #file_exists = (os.path.isfile(f'{OUTPUT_FOLDER+str(tess_id)}_01_info.npy') 
+    #                or os.path.isfile(f'{OUTPUT_FOLDER}/experimental/{str(tess_id)}_01_info.npy')
+    #                )
+
+    #if file_exists:
+    #    return
+
     
     # print("Loading lightcurves")
 
-    q = lk.search_lightcurve(id_string)
+    q = lk.search_lightcurve(id_string, author=['SPOC','TESS-SPOC'])
+    
+    if len(q) == 0:
+        q = lk.search_lightcurve(id_string, author='QLP')
+
+    # to increase processing speed we'll remove short cadences
+    if len(q) > 20:
+        q = q[q.exptime >= u.Quantity(600, u.s)]
+
+    if len(q) == 0:
+        return
+
     lcs = q.download_all()
 
     # print("Stitching lightcurves")
@@ -78,7 +97,18 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     threshold_crossing_events = data_df[data_df['TIC ID'] == int(tess_id)]
 
+    # some stellar bodies have multiple threshold crossing events
+    # we want to generate for each threshold crossing event
     tce_count = threshold_crossing_events.shape[0]
+
+    # print("Processing outliers")
+
+    lc_clean = lc_raw.remove_nans()
+    lc_clean = lc_clean.remove_outliers(sigma=3)
+
+
+    if tce_count > 1:
+        print("TCE > 1")
 
     for i in range(tce_count):
         
@@ -90,7 +120,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # TODO: Ansdell et al describe normalizing all of the stellar parameters across the entire
         #       dataset. This should be easy to do given all but one of the stellar parameters
         #       exist in the dataframe.
-        info = np.full((12,), np.nan)
+        info = np.full((12,), 0, dtype=np.float64)
 
         info[0] = tess_id
         info[1] = i + 1
@@ -106,25 +136,35 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         else:
             info[5] = -1
 
-        info[6] = threshold_crossing_events['Stellar Eff Temp (K)'].item()
-        info[7] = threshold_crossing_events['Stellar log(g) (cm/s^2)'].item()
-        info[8] = threshold_crossing_events['Stellar Metallicity'].item()
-        info[9] = threshold_crossing_events['Stellar Mass (M_Sun)'].item()
-        info[10] = threshold_crossing_events['Stellar Radius (R_Sun)'].item()
+        Teff = threshold_crossing_events['Stellar Eff Temp (K)'].item()
+        logg = threshold_crossing_events['Stellar log(g) (cm/s^2)'].item()
+        metallicity = threshold_crossing_events['Stellar Metallicity'].item()
+        mass = threshold_crossing_events['Stellar Mass (M_Sun)'].item()
+        radius = threshold_crossing_events['Stellar Radius (R_Sun)'].item()
+
+        if not np.isnan(Teff):
+            info[6] = Teff
+
+        if not np.isnan(logg):
+            info[7] = logg
+
+        if not np.isnan(metallicity):
+            info[8] = metallicity
+
+        if not np.isnan(mass):
+            info[9] = mass
+
+        if not np.isnan(radius):
+            info[10] = radius
         
         # density is not included in the original dataframe so we'll need to download it
         # TODO: try adding density for each TIC to the dataframe.
-        stellar_params_link = f'https://exofop.ipac.caltech.edu/tess/download_planet.php?id={tess_id}&output=csv'
+        stellar_params_link = f'https://exofop.ipac.caltech.edu/tess/download_stellar.php?id={tess_id}&output=csv'
 
-        densities = pd.read_csv(stellar_params_link, sep='|')['Fitted Stellar Density (g/cm3)']
+        densities = pd.read_csv(stellar_params_link, sep='|')['Density (g/cm^3)']
 
         if not np.all(densities.isna()):
-            info[11] = pd.read_csv(stellar_params_link, sep='|')['Fitted Stellar Density (g/cm3)'].dropna().iloc[0].item()\
-
-
-        # print("Processing outliers")
-
-        lc_clean = lc_raw.remove_outliers(sigma=3)
+            info[11] = densities.dropna().iloc[0].item()
 
         # print("Masking hack")
 
@@ -143,10 +183,14 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # print("Creating global representation")
 
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor).normalize() - 1
+
+        lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1
+
+        # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_global) == global_bin_width_factor):
             logger.info(f'{tess_id} lc_global incorrect dimension: {len(lc_global)}')
             return
-        lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1
+
 
         # print("Creating local representation")
 
@@ -155,26 +199,34 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
         lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor).normalize() - 1
+
+
+        lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
+        
+        # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_local) == local_bin_width_factor):
             logger.info(f'{tess_id} lc_local incorrect dimension: {len(lc_local)}')
             return
-        lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
-
 
         # print(lc_local.dtype.names)
 
         # add centroid preprocessing
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
-        # export
-        export_lightcurve(lc_local, f"{tess_id}_0{i+1}_local")
-        export_lightcurve(lc_global, f"{tess_id}_0{i+1}_global")
+        if info[5] == -1:
+            out = f'{OUTPUT_FOLDER}/for_testing/'
+        else:
+            out = OUTPUT_FOLDER
 
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_info.npy", np.array(info))
+        # export
+        export_lightcurve(lc_local, f"{out+str(tess_id)}_0{info[1]}_local")
+        export_lightcurve(lc_global, f"{out+str(tess_id)}_0{info[1]}_global")
+
+        np.save(f"{out+str(tess_id)}_0{info[1]}_info.npy", np.array(info))
 
         # export
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_local_cen.npy", local_cen)
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_global_cen.npy", global_cen)
+        np.save(f"{out+str(tess_id)}_0{info[1]}_local_cen.npy", local_cen)
+        np.save(f"{out+str(tess_id)}_0{info[1]}_global_cen.npy", global_cen)
 
 
 
@@ -191,15 +243,15 @@ def export_lightcurve(lc, filename):
         os.mkdir(os.path.join(os.getcwd(), OUTPUT_FOLDER))
 
 #   lc.to_csv(f"./data/{filename}.csv", overwrite=True)
-    np.save(f"{OUTPUT_FOLDER+str(filename)}_flux.npy", np.array(lc['flux']))
+    np.save(f"{filename}_flux.npy", np.array(lc['flux']))
 
 
 ### Centroid Preprocessing
 # section 2.2 of https://arxiv.org/pdf/1810.13434.pdf describes how they normalized
 def normalize_centroid(centroid_data):
     # normalize by subtracting median and dividing by standard deviation
-    med = np.median(centroid_data)
-    std = np.std(centroid_data)
+    med = np.nanmedian(centroid_data)
+    std = np.nanstd(centroid_data)
     centroid_data -= med
     if std == 0:
         logger.info("Error; normalize_centroid(): std == 0")
@@ -230,9 +282,14 @@ def preprocess_centroid(lc_local, lc_global):
         global_y = np.array([float(y/u.pix) for y in lc_global['sap_y']])
         local_x = np.array([float(x/u.pix) for x in lc_local['sap_x']])
         local_y = np.array([float(y/u.pix) for y in lc_local['sap_y']])
+    elif 'centroid_col' in lc_global.columns and 'centroid_row' in lc_global.columns:
+        global_x = np.array([float(x/u.pix) for x in lc_global['centroid_row']])
+        global_y = np.array([float(y/u.pix) for y in lc_global['centroid_col']])
+        local_x = np.array([float(x/u.pix) for x in lc_local['centroid_row']])
+        local_y = np.array([float(y/u.pix) for y in lc_local['centroid_col']])
     else:
         # TO DO: check for centroid_row, centroid_col and do any preprocessing they might require
-        logger.info("Error: preprocess_centroid(): No handling for centroid data not stored in sap_x, sap_y")
+        logger.info("Error: preprocess_centroid(): No centroid data")
         return
 
     # compute r = sqrt(x^2 + y^2) for each centroid location
