@@ -19,7 +19,7 @@ logger.addHandler(handler)
 
 TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
-DEFAULT_TESS_ID = '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
+DEFAULT_TESS_ID =  '133107143' #'2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 
@@ -89,6 +89,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     # print("Stitching lightcurves")
 
     lc_raw = lcs.stitch()
+    lc_raw = add_gaussian_noise(lc_raw)
 
     # print("Fetching period and duration")
 
@@ -103,8 +104,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     # print("Processing outliers")
 
-    lc_clean = lc_raw.remove_nans()
-    lc_clean = lc_clean.remove_outliers(sigma=3)
+    lc_clean = lc_raw.remove_outliers(sigma=3)
 
 
     if tce_count > 1:
@@ -115,56 +115,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         period, duration = threshold_crossing_events['Period (days)'].iloc[i].item(),  threshold_crossing_events['Duration (hours)'].iloc[i].item()
         t0 = threshold_crossing_events['Epoch (BJD)'].iloc[i].item() - BJD_TO_BCTJD_DIFF
 
-        # info contains: [0]tic, [1]tce, [2]period, [3]epoch, [4]duration, [5]label,
-        # [6]Teff, [7]logg, [8]metallicity, [9]mass, [10]radius, [11]density
-        # TODO: Ansdell et al describe normalizing all of the stellar parameters across the entire
-        #       dataset. This should be easy to do given all but one of the stellar parameters
-        #       exist in the dataframe.
-        info = np.full((12,), 0, dtype=np.float64)
-
-        info[0] = tess_id
-        info[1] = i + 1
-        info[2] = period
-        info[3] = threshold_crossing_events['Epoch (BJD)'].item()
-        info[4] = duration
-
-        # if label is -1, these are unknowns for the experimental set
-        if threshold_crossing_events['TFOPWG Disposition'].item() in ['KP', 'CP']:
-            info[5] = 1
-        elif threshold_crossing_events['TFOPWG Disposition'].item() in ['FA', 'FP']:
-            info[5] = 0
-        else:
-            info[5] = -1
-
-        Teff = threshold_crossing_events['Stellar Eff Temp (K)'].item()
-        logg = threshold_crossing_events['Stellar log(g) (cm/s^2)'].item()
-        metallicity = threshold_crossing_events['Stellar Metallicity'].item()
-        mass = threshold_crossing_events['Stellar Mass (M_Sun)'].item()
-        radius = threshold_crossing_events['Stellar Radius (R_Sun)'].item()
-
-        if not np.isnan(Teff):
-            info[6] = Teff
-
-        if not np.isnan(logg):
-            info[7] = logg
-
-        if not np.isnan(metallicity):
-            info[8] = metallicity
-
-        if not np.isnan(mass):
-            info[9] = mass
-
-        if not np.isnan(radius):
-            info[10] = radius
-        
-        # density is not included in the original dataframe so we'll need to download it
-        # TODO: try adding density for each TIC to the dataframe.
-        stellar_params_link = f'https://exofop.ipac.caltech.edu/tess/download_stellar.php?id={tess_id}&output=csv'
-
-        densities = pd.read_csv(stellar_params_link, sep='|')['Density (g/cm^3)']
-
-        if not np.all(densities.isna()):
-            info[11] = densities.dropna().iloc[0].item()
+        info = extract_stellar_parameters(threshold_crossing_events, tess_id, period, duration, i)
 
         # print("Masking hack")
 
@@ -228,7 +179,15 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_local_cen.npy", local_cen)
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_global_cen.npy", global_cen)
 
-
+def add_gaussian_noise(lc):
+    # Adds gaussian noise to flux and replaces nans with noise.
+    mu = np.nanmean(lc.flux)
+    std = np.nanstd(lc.flux)
+    noise = np.random.normal(mu, std, size = len(lc.flux))
+    lc[np.isnan(lc.flux)] = 0
+    lc.flux += noise
+    
+    return lc
 
 def export_lightcurve(lc, filename):
     """
@@ -245,6 +204,61 @@ def export_lightcurve(lc, filename):
 #   lc.to_csv(f"./data/{filename}.csv", overwrite=True)
     np.save(f"{filename}_flux.npy", np.array(lc['flux']))
 
+
+### Info Preprocessing
+def extract_stellar_parameters(threshold_crossing_events, tess_id, period, duration, i):
+    # info contains: [0]tic, [1]tce, [2]period, [3]epoch, [4]duration, [5]label,
+    # [6]Teff, [7]logg, [8]metallicity, [9]mass, [10]radius, [11]density
+    # TODO: Ansdell et al describe normalizing all of the stellar parameters across the entire
+    #       dataset. This should be easy to do given all but one of the stellar parameters
+    #       exist in the dataframe.
+    info = np.full((12,), 0, dtype=np.float64)
+
+    info[0] = tess_id
+    info[1] = i + 1
+    info[2] = period
+    info[3] = threshold_crossing_events['Epoch (BJD)'].item()
+    info[4] = duration
+
+    # if label is -1, these are unknowns for the experimental set
+    if threshold_crossing_events['TFOPWG Disposition'].item() in ['KP', 'CP']:
+        info[5] = 1
+    elif threshold_crossing_events['TFOPWG Disposition'].item() in ['FA', 'FP']:
+        info[5] = 0
+    else:
+        info[5] = -1
+
+    Teff = threshold_crossing_events['Stellar Eff Temp (K)'].item()
+    logg = threshold_crossing_events['Stellar log(g) (cm/s^2)'].item()
+    metallicity = threshold_crossing_events['Stellar Metallicity'].item()
+    mass = threshold_crossing_events['Stellar Mass (M_Sun)'].item()
+    radius = threshold_crossing_events['Stellar Radius (R_Sun)'].item()
+
+    if not np.isnan(Teff):
+        info[6] = Teff
+
+    if not np.isnan(logg):
+        info[7] = logg
+
+    if not np.isnan(metallicity):
+        info[8] = metallicity
+
+    if not np.isnan(mass):
+        info[9] = mass
+
+    if not np.isnan(radius):
+        info[10] = radius
+
+    # density is not included in the original dataframe so we'll need to download it
+    # TODO: try adding density for each TIC to the dataframe.
+    stellar_params_link = f'https://exofop.ipac.caltech.edu/tess/download_stellar.php?id={tess_id}&output=csv'
+
+    densities = pd.read_csv(stellar_params_link, sep='|')['Density (g/cm^3)']
+
+    if not np.all(densities.isna()):
+        info[11] = densities.dropna().iloc[0].item()
+
+    return info
 
 ### Centroid Preprocessing
 # section 2.2 of https://arxiv.org/pdf/1810.13434.pdf describes how they normalized
