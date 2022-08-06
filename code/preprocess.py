@@ -19,13 +19,13 @@ logger.addHandler(handler)
 
 TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
-DEFAULT_TESS_ID =  '133107143' #'2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
+DEFAULT_TESS_ID =  '220459826' #'2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
-global_bin_width_factor = 201
-local_bin_width_factor = 61
+global_bin_width_factor = 2001
+local_bin_width_factor = 201
 
 def fetch_tess_data_df():
     """
@@ -106,10 +106,6 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     lc_clean = lc_raw.remove_outliers(sigma=3)
 
-
-    if tce_count > 1:
-        print("TCE > 1")
-
     for i in range(tce_count):
         
         period, duration = threshold_crossing_events['Period (days)'].iloc[i].item(),  threshold_crossing_events['Duration (hours)'].iloc[i].item()
@@ -133,7 +129,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         # print("Creating global representation")
 
-        lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor).normalize() - 1
+        lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor, n_bins=global_bin_width_factor).normalize() - 1
 
         lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1
 
@@ -142,6 +138,9 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
             logger.info(f'{tess_id} lc_global incorrect dimension: {len(lc_global)}')
             return
 
+        # fill nans with median
+        if np.any(np.isnan(lc_global.flux)):
+            lc_global.flux = fill_nans(lc_global.flux)
 
         # print("Creating local representation")
 
@@ -149,11 +148,15 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         lc_zoom = lc_fold[phase_mask]
 
         # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
-        lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor).normalize() - 1
+        lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor, n_bins=local_bin_width_factor).normalize() - 1
 
 
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
         
+        # fill nans with median
+        if np.any(np.isnan(lc_local.flux)):
+            lc_local.flux = fill_nans(lc_local.flux)
+
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_local) == local_bin_width_factor):
             logger.info(f'{tess_id} lc_local incorrect dimension: {len(lc_local)}')
@@ -179,12 +182,17 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_local_cen.npy", local_cen)
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_global_cen.npy", global_cen)
 
+def fill_nans(flux):
+    flux[np.isnan(flux)] = np.nanmedian(flux)
+
+    return flux
+
 def add_gaussian_noise(lc):
     # Adds gaussian noise to flux and replaces nans with noise.
     mu = np.nanmean(lc.flux)
     std = np.nanstd(lc.flux)
     noise = np.random.normal(mu, std, size = len(lc.flux))
-    lc.flux[np.isnan(lc.flux)] = np.nanmedian(lc.flux)
+    lc.flux = fill_nans(lc.flux)
     lc.flux += noise
     
     return lc
@@ -217,22 +225,22 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     info[0] = tess_id
     info[1] = i + 1
     info[2] = period
-    info[3] = threshold_crossing_events['Epoch (BJD)'].item()
+    info[3] = threshold_crossing_events['Epoch (BJD)'].iloc[i].item()
     info[4] = duration
 
     # if label is -1, these are unknowns for the experimental set
-    if threshold_crossing_events['TFOPWG Disposition'].item() in ['KP', 'CP']:
+    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP']:
         info[5] = 1
-    elif threshold_crossing_events['TFOPWG Disposition'].item() in ['FA', 'FP']:
+    elif threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['FA', 'FP']:
         info[5] = 0
     else:
         info[5] = -1
 
-    Teff = threshold_crossing_events['Stellar Eff Temp (K)'].item()
-    logg = threshold_crossing_events['Stellar log(g) (cm/s^2)'].item()
-    metallicity = threshold_crossing_events['Stellar Metallicity'].item()
-    mass = threshold_crossing_events['Stellar Mass (M_Sun)'].item()
-    radius = threshold_crossing_events['Stellar Radius (R_Sun)'].item()
+    Teff = threshold_crossing_events['Stellar Eff Temp (K)'].iloc[i].item()
+    logg = threshold_crossing_events['Stellar log(g) (cm/s^2)'].iloc[i].item()
+    metallicity = threshold_crossing_events['Stellar Metallicity'].iloc[i].item()
+    mass = threshold_crossing_events['Stellar Mass (M_Sun)'].iloc[i].item()
+    radius = threshold_crossing_events['Stellar Radius (R_Sun)'].iloc[i].item()
 
     if not np.isnan(Teff):
         info[6] = Teff
@@ -310,7 +318,12 @@ def preprocess_centroid(lc_local, lc_global):
     local_cen = np.array([get_mag(x,y) for x, y in zip(local_x, local_y)])
     global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
 
-    # normalize by subtracting mean and dividing by standard deviation
+    if np.any(np.isnan(local_cen)):
+        local_cen = fill_nans(local_cen)
+    if np.any(np.isnan(global_cen)):
+        global_cen = fill_nans(global_cen)
+
+    # normalize by subtracting median and dividing by standard deviation
     normalize_centroid(local_cen)
     normalize_centroid(global_cen)
 
