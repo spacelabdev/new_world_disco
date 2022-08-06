@@ -24,8 +24,8 @@ BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
-global_bin_width_factor = 2001
-local_bin_width_factor = 201
+global_bin_width_factor = 201
+local_bin_width_factor = 61
 
 def fetch_tess_data_df():
     """
