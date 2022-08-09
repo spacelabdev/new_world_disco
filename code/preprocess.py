@@ -10,18 +10,20 @@ import math
 from astropy import units as u
 
 
-
+logging.captureWarnings(True)
 logger = logging.getLogger(__name__)
 
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.DEBUG)
 handler = logging.FileHandler('preprocess.log')
 logger.addHandler(handler)
 
+
 TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
-DEFAULT_TESS_ID =  '220459826' #'2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
+DEFAULT_TESS_ID =  '257527578' #'2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
+LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
 global_bin_width_factor = 201
@@ -84,12 +86,15 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     if len(q) == 0:
         return
 
-    lcs = q.download_all()
+    lcs = q.download_all(download_dir = LIGHTKURVE_CACHE_FOLDER)
 
     # print("Stitching lightcurves")
 
     lc_raw = lcs.stitch()
-    lc_raw = add_gaussian_noise(lc_raw)
+
+    # fill nans with median
+    if np.any(np.isnan(lc_raw.flux)):
+        lc_raw.flux = add_gaussian_noise(lc_raw.flux)
 
     # print("Fetching period and duration")
 
@@ -131,16 +136,23 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor, n_bins=global_bin_width_factor).normalize() - 1
 
+        # fill nans with gaussian noise
+        if np.any(np.isnan(lc_global.flux)):
+            lc_global.flux = add_gaussian_noise(lc_global.flux)
+
+        divisor = np.abs(np.nanmin(lc_global.flux))
+
         lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1
+
+        if divisor == 0 or np.isnan(divisor):
+            logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1')
+            if np.any(np.isnan(lc_global.flux):
+                return
 
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_global) == global_bin_width_factor):
             logger.info(f'{tess_id} lc_global incorrect dimension: {len(lc_global)}')
             return
-
-        # fill nans with median
-        if np.any(np.isnan(lc_global.flux)):
-            lc_global.flux = fill_nans(lc_global.flux)
 
         # print("Creating local representation")
 
@@ -150,12 +162,19 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
         lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor, n_bins=local_bin_width_factor).normalize() - 1
 
+        divisor = np.abs(np.nanmin(lc_local.flux))
+
+        # fill nans with gaussian noise
+        if np.any(np.isnan(lc_local.flux)):
+            lc_local.flux = add_gaussian_noise(lc_local.flux)
 
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
-        
-        # fill nans with median
-        if np.any(np.isnan(lc_local.flux)):
-            lc_local.flux = fill_nans(lc_local.flux)
+
+        if divisor == 0 or np.isnan(divisor):
+            logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1')
+            if np.any(np.isnan(lc_local.flux)):
+                return
+            
 
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_local) == local_bin_width_factor):
@@ -182,20 +201,13 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_local_cen.npy", local_cen)
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_global_cen.npy", global_cen)
 
-def fill_nans(flux):
-    flux[np.isnan(flux)] = np.nanmedian(flux)
-
-    return flux
-
-def add_gaussian_noise(lc):
-    # Adds gaussian noise to flux and replaces nans with noise.
-    mu = np.nanmean(lc.flux)
-    std = np.nanstd(lc.flux)
-    noise = np.random.normal(mu, std, size = len(lc.flux))
-    lc.flux = fill_nans(lc.flux)
-    lc.flux += noise
+def add_gaussian_noise(lc_flux):
+    # Replace nans with guassian noise
+    mu = np.nanmedian(lc_flux)
+    std = np.nanstd(lc_flux)
+    lc_flux[np.isnan(lc_flux)] = np.random.normal(mu, std, size = np.isnan(lc_flux).sum())
     
-    return lc
+    return lc_flux
 
 def export_lightcurve(lc, filename):
     """
@@ -229,7 +241,7 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     info[4] = duration
 
     # if label is -1, these are unknowns for the experimental set
-    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP']:
+    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP', 'PC']:
         info[5] = 1
     elif threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['FA', 'FP']:
         info[5] = 0
@@ -319,9 +331,9 @@ def preprocess_centroid(lc_local, lc_global):
     global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
 
     if np.any(np.isnan(local_cen)):
-        local_cen = fill_nans(local_cen)
+        local_cen = add_gaussian_noise(local_cen)
     if np.any(np.isnan(global_cen)):
-        global_cen = fill_nans(global_cen)
+        global_cen = add_gaussian_noise(global_cen)
 
     # normalize by subtracting median and dividing by standard deviation
     normalize_centroid(local_cen)
