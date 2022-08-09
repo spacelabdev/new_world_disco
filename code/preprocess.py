@@ -146,7 +146,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         if divisor == 0 or np.isnan(divisor):
             logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1')
-            if np.any(np.isnan(lc_global.flux):
+            if np.any(np.isnan(lc_global.flux)):
                 return
 
         # sometimes we get the wrong number of bins, so we have to abort
@@ -241,7 +241,7 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     info[4] = duration
 
     # if label is -1, these are unknowns for the experimental set
-    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP', 'PC']:
+    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP']:
         info[5] = 1
     elif threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['FA', 'FP']:
         info[5] = 0
