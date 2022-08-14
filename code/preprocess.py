@@ -24,6 +24,7 @@ DEFAULT_TESS_ID =  '257527578' #'2016376984' # a working 'v-shaped' lightcurve. 
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
+EARTH_RADIUS = 6378.1
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
 global_bin_width_factor = 201
@@ -109,7 +110,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     # print("Processing outliers")
 
-    lc_clean = lc_raw.remove_outliers(sigma=3)
+    # sigma set following Ansdell et al https://www.aanda.org/articles/aa/full_html/2020/01/aa35345-19/aa35345-19.html
+    lc_clean = lc_raw.remove_outliers(sigma=3.5)
 
     for i in range(tce_count):
         
@@ -142,7 +144,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         divisor = np.abs(np.nanmin(lc_global.flux))
 
-        lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1
+        lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) )
 
         if divisor == 0 or np.isnan(divisor):
             logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1')
@@ -168,7 +170,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         if np.any(np.isnan(lc_local.flux)):
             lc_local.flux = add_gaussian_noise(lc_local.flux)
 
-        lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
+        lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) )
 
         if divisor == 0 or np.isnan(divisor):
             logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1')
@@ -232,7 +234,7 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     # TODO: Ansdell et al describe normalizing all of the stellar parameters across the entire
     #       dataset. This should be easy to do given all but one of the stellar parameters
     #       exist in the dataframe.
-    info = np.full((12,), 0, dtype=np.float64)
+    info = np.full((20,), 0, dtype=np.float64)
 
     info[0] = tess_id
     info[1] = i + 1
@@ -241,9 +243,9 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     info[4] = duration
 
     # if label is -1, these are unknowns for the experimental set
-    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP']:
+    if threshold_crossing_events['TESS Disposition'].iloc[i] in ['KP', 'CP']:
         info[5] = 1
-    elif threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['FA', 'FP']:
+    elif threshold_crossing_events['TESS Disposition'].iloc[i] in ['FA', 'FP']:
         info[5] = 0
     else:
         info[5] = -1
@@ -252,31 +254,44 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     logg = threshold_crossing_events['Stellar log(g) (cm/s^2)'].iloc[i].item()
     metallicity = threshold_crossing_events['Stellar Metallicity'].iloc[i].item()
     mass = threshold_crossing_events['Stellar Mass (M_Sun)'].iloc[i].item()
-    radius = threshold_crossing_events['Stellar Radius (R_Sun)'].iloc[i].item()
+    stellar_radius = threshold_crossing_events['Stellar Radius (R_Sun)'].iloc[i].item()
+    planet_snr = threshold_crossing_events['Planet SNR'].iloc[i].item()
+    tess_mag = threshold_crossing_events['TESS Mag'].iloc[i].item()
+    proper_motion = threshold_crossing_events['PM RA (mas/yr)'].iloc[i].item()
 
-    if not np.isnan(Teff):
-        info[6] = Teff
+    for i, param in enumerate([Teff, logg, metallicity, mass, stellar_radius, planet_snr, tess_mag, proper_motion]):
+        print(i, param)
+        if not np.isnan(param):
+            info[5+i+1] = param
 
-    if not np.isnan(logg):
-        info[7] = logg
-
-    if not np.isnan(metallicity):
-        info[8] = metallicity
-
-    if not np.isnan(mass):
-        info[9] = mass
-
-    if not np.isnan(radius):
-        info[10] = radius
-
-    # density is not included in the original dataframe so we'll need to download it
-    # TODO: try adding density for each TIC to the dataframe.
+    # we need to download the remaining parameters
     stellar_params_link = f'https://exofop.ipac.caltech.edu/tess/download_stellar.php?id={tess_id}&output=csv'
 
-    densities = pd.read_csv(stellar_params_link, sep='|')['Density (g/cm^3)']
+    stellar_params = pd.read_csv(stellar_params_link, sep='|')
+    
+    densities = stellar_params['Density (g/cm^3)']
 
     if not np.all(densities.isna()):
-        info[11] = densities.dropna().iloc[0].item()
+        info[14] = densities.dropna().iloc[0].item()
+
+    planet_params_link = f'https://exofop.ipac.caltech.edu/tess/download_planet.php?id={tess_id}&output=csv'
+
+    planet_params = pd.read_csv(planet_params_link, sep='|')
+
+    a_rs = planet_params['a/Rad_s']
+    depths = planet_params['Depth (ppm)']
+    radius_ratios = planet_params['Rad_p/Rad_s']
+    impact_param_b = planet_params['Impact Parameter b']
+
+    for i, param_list in enumerate([a_rs, depths, radius_ratios, impact_param_b]):
+        if not np.all(param_list.isna()):
+            info[14+i+1] = param_list.dropna().iloc[0].item()
+    
+    planet_radius = planet_params['Radius (R_Earth)']
+    arb_boundary = 13*EARTH_RADIUS
+    if not np.all(planet_radius.isna()):
+        logRp_Rb = np.log(planet_radius.iloc[0].item())/arb_boundary
+        info[19] = logRp_Rb
 
     return info
 
