@@ -9,7 +9,6 @@ import pandas as pd
 import requests
 import math
 from astropy import units as u
-import pickle
 
 logging.captureWarnings(True)
 logger = logging.getLogger(__name__)
