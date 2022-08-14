@@ -1,6 +1,7 @@
 import logging
 import io
 import os
+import boto3
 
 import lightkurve as lk
 import numpy as np
@@ -8,7 +9,7 @@ import pandas as pd
 import requests
 import math
 from astropy import units as u
-
+import pickle
 
 logging.captureWarnings(True)
 logger = logging.getLogger(__name__)
@@ -22,8 +23,9 @@ TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
 DEFAULT_TESS_ID =  '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
+S3_BUCKET = 'preprocess-tess-data-bucket'
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
-EXPERIMENTAL_FOLDER = 'experimental' # folder for planets with unknown status
+EXPERIMENTAL_FOLDER = 'experimental/' # folder for planets with unknown status
 LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
 EARTH_RADIUS = 6378.1
 
@@ -65,30 +67,10 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     # Download and stitch all lightcurve quarters together.
     id_string = f'TIC {tess_id}'
-
-    #file_exists = (os.path.isfile(f'{OUTPUT_FOLDER+str(tess_id)}_01_info.npy') 
-    #                or os.path.isfile(f'{OUTPUT_FOLDER}/experimental/{str(tess_id)}_01_info.npy')
-    #                )
-
-    #if file_exists:
-    #    return
-
     
     # print("Loading lightcurves")
 
-    q = lk.search_lightcurve(id_string, author=['SPOC','TESS-SPOC'])
-    
-    if len(q) == 0:
-        q = lk.search_lightcurve(id_string, author='QLP')
-
-    # to increase processing speed we'll remove short cadences
-    if len(q) > 20:
-        q = q[q.exptime >= u.Quantity(600, u.s)]
-
-    if len(q) == 0:
-        return
-
-    lcs = q.download_all(download_dir = LIGHTKURVE_CACHE_FOLDER)
+    lcs = download_lightcurves(id_string)
 
     # print("Stitching lightcurves")
 
@@ -194,6 +176,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         else:
             out = OUTPUT_FOLDER
 
+        print(out)
         # export
         export_lightcurve(lc_local, f"{out+str(tess_id)}_0{int(info[1])}_local")
         export_lightcurve(lc_global, f"{out+str(tess_id)}_0{int(info[1])}_global")
@@ -204,6 +187,27 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_local_cen.npy", local_cen)
         np.save(f"{out+str(tess_id)}_0{int(info[1])}_global_cen.npy", global_cen)
 
+        # export_data_to_s3(lc_local, out, f'{str(tess_id)}_0{int(info[1])}_local')
+        # export_data_to_s3(lc_global, out, f'{str(tess_id)}_0{int(info[1])}_global')
+        # export_data_to_s3(info, out, f'{str(tess_id)}_0{int(info[1])}_info')
+        # export_data_to_s3(local_cen, out, f'{str(tess_id)}_0{int(info[1])}_local_cen')
+        # export_data_to_s3(global_cen, out, f'{str(tess_id)}_0{int(info[1])}_global_cen')
+
+def download_lightcurves(id_string):
+    q = lk.search_lightcurve(id_string, author=['SPOC','TESS-SPOC'])
+    
+    if len(q) == 0:
+        q = lk.search_lightcurve(id_string, author='QLP')
+
+    # to increase processing speed we'll remove short cadences
+    if len(q) > 20:
+        q = q[q.exptime >= u.Quantity(600, u.s)]
+
+    if len(q) == 0:
+        return
+
+    return q.download_all()
+
 def add_gaussian_noise(lc_flux):
     # Replace nans with guassian noise
     mu = np.nanmedian(lc_flux)
@@ -211,6 +215,25 @@ def add_gaussian_noise(lc_flux):
     lc_flux[np.isnan(lc_flux)] = np.random.normal(mu, std, size = np.isnan(lc_flux).sum())
     
     return lc_flux
+
+def export_data_to_s3(data, output_folder, filename):
+    """
+    Method to save lightcurve data as a pickle object.
+
+    Inputs: data = data to be saved.
+            output_folder = folder in which to save file.
+            filename = name of the file.
+    """
+    s3 = boto3.client('s3')
+
+    if not 'Contents' in s3.list_objects(Bucket=S3_BUCKET, Prefix=output_folder):
+        s3.put_object(Bucket=S3_BUCKET, Key=output_folder)
+
+    # we use an in-memory bytes buffer so we don't have to save locally
+    bytes_data = io.BytesIO()
+    pickle.dump(data, bytes_data)
+    bytes_data.seek(0)
+    s3.upload_fileobj(bytes_data, S3_BUCKET, f'{output_folder}{filename}.pkl')
 
 def export_lightcurve(lc, filename):
     """
