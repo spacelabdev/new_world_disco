@@ -3,10 +3,17 @@ import numpy as np
 import pandas as pd
 
 TRAINING_DATASET_PATH = './tess_data'
-PREDICTION_DATASET_PATH = './tess_data/for_testing'
-DEFAULT_COLUMNS = ['TIC', 'TCE', 'period', 'epoch', 'duration', 'label', 'Teff', 'logg', 
-                    'metallicity', 'mass', 'radius', 'density']
-NORMALIZED_COLUMNS = ['Teff', 'logg', 'metallicity', 'mass', 'radius', 'density']
+PREDICTION_DATASET_PATH = './tess_data/experimental'
+
+
+
+DEFAULT_COLUMNS = ['TIC', 'TCE', 'label', 'period', 'epoch', 'duration', 'Teff', 'logg', 
+                    'metallicity', 'mass', 'stellar_radius', 'SNR', 'TESS_Mag', 'PM',
+                    'density', 'a/Rs', 'depth', 'radius_ratio', 'impact_parameter_b', 
+                    'logRp_Rearth']
+NORMALIZED_COLUMNS = ['period', 'epoch', 'duration', 'Teff', 'logg', 'metallicity', 'mass', 
+                        'stellar_radius', 'SNR', 'TESS_Mag', 'PM', 'density', 'a/Rs', 'depth', 
+                        'radius_ratio', 'impact_parameter_b', 'logRp_Rearth']
 
 def load_all_stellar_parameters(filepath):
     """

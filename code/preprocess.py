@@ -20,15 +20,16 @@ logger.addHandler(handler)
 
 TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
-DEFAULT_TESS_ID =  '257527578' #'2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
+DEFAULT_TESS_ID =  '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
+EXPERIMENTAL_FOLDER = 'experimental' # folder for planets with unknown status
 LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
 EARTH_RADIUS = 6378.1
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
-global_bin_width_factor = 201
-local_bin_width_factor = 61
+global_bin_width_factor = 2001
+local_bin_width_factor = 201
 
 def fetch_tess_data_df():
     """
@@ -189,7 +190,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
         if info[5] == -1:
-            out = f'{OUTPUT_FOLDER}/for_testing/'
+            out = f'{OUTPUT_FOLDER}/{EXPERIMENTAL_FOLDER}/'
         else:
             out = OUTPUT_FOLDER
 
@@ -229,26 +230,28 @@ def export_lightcurve(lc, filename):
 
 ### Info Preprocessing
 def extract_stellar_parameters(threshold_crossing_events, tess_id, period, duration, i):
-    # info contains: [0]tic, [1]tce, [2]period, [3]epoch, [4]duration, [5]label,
-    # [6]Teff, [7]logg, [8]metallicity, [9]mass, [10]radius, [11]density
-    # TODO: Ansdell et al describe normalizing all of the stellar parameters across the entire
-    #       dataset. This should be easy to do given all but one of the stellar parameters
-    #       exist in the dataframe.
+    # info contains: [0]tic, [1]tce, [2]label, [3]period, [4]epoch, [5]duration, 
+    # [6]Teff, [7]logg, [8]metallicity, [9]mass, [10]stellar_radius, [11]SNR, [12]TESS_Mag, 
+    # [13]proper_motion, [14]density, [15]a/Rs, [16]depth, [17]radius_ratio, 
+    # [18]impact_parameter_b, [19]logRp_Rearth
     info = np.full((20,), 0, dtype=np.float64)
 
     info[0] = tess_id
     info[1] = i + 1
-    info[2] = period
-    info[3] = threshold_crossing_events['Epoch (BJD)'].iloc[i].item()
-    info[4] = duration
 
     # if label is -1, these are unknowns for the experimental set
     if threshold_crossing_events['TESS Disposition'].iloc[i] in ['KP', 'CP']:
-        info[5] = 1
+        info[2] = 1
     elif threshold_crossing_events['TESS Disposition'].iloc[i] in ['FA', 'FP']:
-        info[5] = 0
+        info[2] = 0
     else:
-        info[5] = -1
+        info[2] = -1
+
+    info[3] = period
+    info[4] = threshold_crossing_events['Epoch (BJD)'].iloc[i].item()
+    info[5] = duration
+
+    
 
     Teff = threshold_crossing_events['Stellar Eff Temp (K)'].iloc[i].item()
     logg = threshold_crossing_events['Stellar log(g) (cm/s^2)'].iloc[i].item()
@@ -260,7 +263,6 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     proper_motion = threshold_crossing_events['PM RA (mas/yr)'].iloc[i].item()
 
     for i, param in enumerate([Teff, logg, metallicity, mass, stellar_radius, planet_snr, tess_mag, proper_motion]):
-        print(i, param)
         if not np.isnan(param):
             info[5+i+1] = param
 
