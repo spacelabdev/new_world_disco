@@ -231,7 +231,7 @@ def export_data_to_s3(data, output_folder, filename):
 
     # we use an in-memory bytes buffer so we don't have to save locally
     bytes_data = io.BytesIO()
-    pickle.dump(data, bytes_data)
+    np.save(bytes_data, data, allow_pickle=True)
     bytes_data.seek(0)
     s3.upload_fileobj(bytes_data, S3_BUCKET, f'{output_folder}{filename}.pkl')
 
