@@ -23,7 +23,7 @@ LOCAL_DATA_FILE_NAME = 'tess_data.csv'
 DEFAULT_TESS_ID =  '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
-EXPERIMENTAL_FOLDER = 'experimental' # folder for planets with unknown status
+EXPERIMENTAL_FOLDER = 'experimental/' # folder for planets with unknown status
 LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
 EARTH_RADIUS = 6378.1
 
@@ -189,7 +189,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # add centroid preprocessing
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
-        if info[5] == -1:
+        if info[2] == -1:
             out = f'{OUTPUT_FOLDER}/{EXPERIMENTAL_FOLDER}/'
         else:
             out = OUTPUT_FOLDER
