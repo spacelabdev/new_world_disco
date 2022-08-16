@@ -61,7 +61,13 @@ def save_normalized_parameters(stellar_paramaters_dataframe):
 
 if __name__ == '__main__':
     print('Loading data . . .')
-    parameters_dict = load_all_stellar_parameters(TRAINING_DATASET_PATH) | load_all_stellar_parameters(PREDICTION_DATASET_PATH)
+    train_dict = load_all_stellar_parameters(TRAINING_DATASET_PATH)
+    experimental_dict = load_all_stellar_parameters(PREDICTION_DATASET_PATH)
+    
+    if len(experimental_dict) > 0:
+        parameters_dict = train_dict | experimental_dict
+    else:
+        parameters_dict = train_dict
 
     print('Converting to DataFrame . . .')
     stellar_params_df = convert_parameters_dict_to_dataframe(parameters_dict)
