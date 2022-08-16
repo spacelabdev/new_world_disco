@@ -196,7 +196,6 @@ def add_gaussian_noise(lc_flux):
     # Replace nans with median and add guassian noise
     mu = np.nanmedian(lc_flux)
     rms = np.sqrt(np.nanmean(np.square(lc_flux)))
-    print(std, rms)
     lc_flux[np.isnan(lc_flux)] = mu 
     lc_flux = np.random.normal(mu, rms, size = len(lc_flux))
     
