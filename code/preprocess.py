@@ -119,8 +119,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) )
 
         # fill nans and add gaussian noise
-        if np.any(np.isnan(lc_global.flux)):
-            lc_global.flux = add_gaussian_noise(lc_global.flux)   
+        lc_global.flux = add_gaussian_noise(lc_global.flux)   
 
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_global) == global_bin_width_factor):
@@ -142,8 +141,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) )
 
         # fill nans and add gaussian noise
-        if np.any(np.isnan(lc_local.flux)):
-            lc_local.flux = add_gaussian_noise(lc_local.flux)        
+        lc_local.flux = add_gaussian_noise(lc_local.flux)        
             
 
         # sometimes we get the wrong number of bins, so we have to abort
