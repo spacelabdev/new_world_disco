@@ -9,7 +9,6 @@ import pandas as pd
 import requests
 import math
 from astropy import units as u
-import pickle
 
 logging.captureWarnings(True)
 logger = logging.getLogger(__name__)
@@ -36,7 +35,6 @@ local_bin_width_factor = 201
 def fetch_tess_data_df():
     """
     Method to load TESS data. 
-
     If data does not exist locally, it will be downloaded from
     TESS_DATA_URL and saved locally.
     """
@@ -52,15 +50,12 @@ def fetch_tess_data_df():
 def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     """
     Method for preprocessing TESS data.
-
     Data preprocessing consists of 4 stages:
         1. Outliers are removed.
         2. The lightcurve is flattened and folded.
         3. A global view of the lightcurve is generated.
         4. A local view of the transit is generated.
-
     After preprocessing, global and local views are saved to disk.
-
     Input: tess_id = TESS Input Catalog (TIC) identifier.
     """
 
@@ -75,10 +70,6 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     # print("Stitching lightcurves")
 
     lc_raw = lcs.stitch()
-
-    # fill nans with median
-    if np.any(np.isnan(lc_raw.flux)):
-        lc_raw.flux = add_gaussian_noise(lc_raw.flux)
 
     # print("Fetching period and duration")
 
@@ -121,18 +112,15 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor, n_bins=global_bin_width_factor).normalize() - 1
 
-        # fill nans with gaussian noise
-        if np.any(np.isnan(lc_global.flux)):
-            lc_global.flux = add_gaussian_noise(lc_global.flux)
-
-        divisor = np.abs(np.nanmin(lc_global.flux))
+        if np.sum(np.isnan(lc_global.flux))/len(lc_global.flux) > 0.25:
+            logger.info(f'{tess_id} global view contains > 0.25 NaNs.')
+            return
 
         lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) )
 
-        if divisor == 0 or np.isnan(divisor):
-            logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1')
-            if np.any(np.isnan(lc_global.flux)):
-                return
+        # fill nans and add gaussian noise
+        if np.any(np.isnan(lc_global.flux)):
+            lc_global.flux = add_gaussian_noise(lc_global.flux)   
 
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_global) == global_bin_width_factor):
@@ -147,18 +135,15 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
         lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor, n_bins=local_bin_width_factor).normalize() - 1
 
-        divisor = np.abs(np.nanmin(lc_local.flux))
-
-        # fill nans with gaussian noise
-        if np.any(np.isnan(lc_local.flux)):
-            lc_local.flux = add_gaussian_noise(lc_local.flux)
+        if np.sum(np.isnan(lc_local.flux))/len(lc_local.flux) > 0.25:
+            logger.info(f'{tess_id} local view contains > 0.25 NaNs.')
+            return
 
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) )
 
-        if divisor == 0 or np.isnan(divisor):
-            logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1')
-            if np.any(np.isnan(lc_local.flux)):
-                return
+        # fill nans and add gaussian noise
+        if np.any(np.isnan(lc_local.flux)):
+            lc_local.flux = add_gaussian_noise(lc_local.flux)        
             
 
         # sometimes we get the wrong number of bins, so we have to abort
@@ -205,20 +190,21 @@ def download_lightcurves(id_string):
     if len(q) == 0:
         return
 
-    return q.download_all()
+    return q.download_all(download_dir=LIGHTKURVE_CACHE_FOLDER)
 
 def add_gaussian_noise(lc_flux):
-    # Replace nans with guassian noise
+    # Replace nans with median and add guassian noise
     mu = np.nanmedian(lc_flux)
-    std = np.nanstd(lc_flux)
-    lc_flux[np.isnan(lc_flux)] = np.random.normal(mu, std, size = np.isnan(lc_flux).sum())
+    rms = np.sqrt(np.nanmean(np.square(lc_flux)))
+    print(std, rms)
+    lc_flux[np.isnan(lc_flux)] = mu 
+    lc_flux = np.random.normal(mu, rms, size = len(lc_flux))
     
     return lc_flux
 
 def export_data_to_s3(data, output_folder, filename):
     """
     Method to save lightcurve data as a pickle object.
-
     Inputs: data = data to be saved.
             output_folder = folder in which to save file.
             filename = name of the file.
@@ -237,7 +223,6 @@ def export_data_to_s3(data, output_folder, filename):
 def export_lightcurve(lc, filename):
     """
     Method to save lightcurve data as CSV and a NumPy array file (.npy) representing flux.
-
     Inputs: lc = lightcurve to be saved.
             folder = folder in which to save file.
             filename = name of the file.
@@ -343,7 +328,6 @@ def get_mag(x, y):
 def preprocess_centroid(lc_local, lc_global):
     """
     Method for preprocessing TESS centroid data
-
     Input: local and global lightcurve objects (already pre-processed)
     Output: local and global centroid position numpy arrays
     """
@@ -368,11 +352,6 @@ def preprocess_centroid(lc_local, lc_global):
     # compute r = sqrt(x^2 + y^2) for each centroid location
     local_cen = np.array([get_mag(x,y) for x, y in zip(local_x, local_y)])
     global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
-
-    if np.any(np.isnan(local_cen)):
-        local_cen = add_gaussian_noise(local_cen)
-    if np.any(np.isnan(global_cen)):
-        global_cen = add_gaussian_noise(global_cen)
 
     # normalize by subtracting median and dividing by standard deviation
     normalize_centroid(local_cen)
