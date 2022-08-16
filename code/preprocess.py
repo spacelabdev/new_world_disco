@@ -1,6 +1,7 @@
 import logging
 import io
 import os
+from re import L
 import boto3
 
 import lightkurve as lk
@@ -352,6 +353,9 @@ def preprocess_centroid(lc_local, lc_global):
     # normalize by subtracting median and dividing by standard deviation
     normalize_centroid(local_cen)
     normalize_centroid(global_cen)
+
+    local_cen = add_gaussian_noise(local_cen)
+    global_cen = add_gaussian_noise(global_cen)
 
     return local_cen, global_cen
 
