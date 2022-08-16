@@ -170,12 +170,11 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # add centroid preprocessing
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
-        if info[5] == -1:
+        if info[2] == -1:
             out = f'{OUTPUT_FOLDER}/{EXPERIMENTAL_FOLDER}/'
         else:
             out = OUTPUT_FOLDER
 
-        print(out)
         # export
         export_lightcurve(lc_local, f"{out+str(tess_id)}_0{int(info[1])}_local")
         export_lightcurve(lc_global, f"{out+str(tess_id)}_0{int(info[1])}_global")
