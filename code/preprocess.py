@@ -192,10 +192,7 @@ def download_lightcurves(id_string):
 def add_gaussian_noise(lc_flux):
     # Replace nans with median and add guassian noise
     mu = np.nanmedian(lc_flux)
-    print(mu)
     rms = np.sqrt(np.nanmean(np.square(lc_flux)))
-    std = np.nanstd(lc_flux)
-    print(rms, std)
     lc_flux[np.isnan(lc_flux)] = mu
     lc_flux = lc_flux + np.random.normal(mu, rms, size = len(lc_flux))
     
