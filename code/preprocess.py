@@ -75,10 +75,6 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
     lc_raw = lcs.stitch()
 
-    # fill nans with median
-    if np.any(np.isnan(lc_raw.flux)):
-        lc_raw.flux = add_gaussian_noise(lc_raw.flux)
-
     # print("Fetching period and duration")
 
     # Fetch period and duration data from caltech exofop for tess
@@ -120,18 +116,15 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor, n_bins=global_bin_width_factor).normalize() - 1
 
-        # fill nans with gaussian noise
-        if np.any(np.isnan(lc_global.flux)):
-            lc_global.flux = add_gaussian_noise(lc_global.flux)
-
-        divisor = np.abs(np.nanmin(lc_global.flux))
+        if np.sum(np.isnan(lc_global.flux))/len(lc_global.flux) > 0.25:
+            logger.info(f'{tess_id} global view contains > 0.25 NaNs.')
+            return
 
         lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) )
 
-        if divisor == 0 or np.isnan(divisor):
-            logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1')
-            if np.any(np.isnan(lc_global.flux)):
-                return
+        # fill nans and add gaussian noise
+        if np.any(np.isnan(lc_global.flux)):
+            lc_global.flux = add_gaussian_noise(lc_global.flux)   
 
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_global) == global_bin_width_factor):
@@ -146,18 +139,15 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
         lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor, n_bins=local_bin_width_factor).normalize() - 1
 
-        divisor = np.abs(np.nanmin(lc_local.flux))
-
-        # fill nans with gaussian noise
-        if np.any(np.isnan(lc_local.flux)):
-            lc_local.flux = add_gaussian_noise(lc_local.flux)
+        if np.sum(np.isnan(lc_local.flux))/len(lc_local.flux) > 0.25:
+            logger.info(f'{tess_id} local view contains > 0.25 NaNs.')
+            return
 
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) )
 
-        if divisor == 0 or np.isnan(divisor):
-            logger.info(f'{tess_id}: Possible divide by zero or divide by nan error in lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1')
-            if np.any(np.isnan(lc_local.flux)):
-                return
+        # fill nans and add gaussian noise
+        if np.any(np.isnan(lc_local.flux)):
+            lc_local.flux = add_gaussian_noise(lc_local.flux)        
             
 
         # sometimes we get the wrong number of bins, so we have to abort
@@ -207,10 +197,12 @@ def download_lightcurves(id_string):
     return q.download_all()
 
 def add_gaussian_noise(lc_flux):
-    # Replace nans with guassian noise
+    # Replace nans with median and add guassian noise
     mu = np.nanmedian(lc_flux)
-    std = np.nanstd(lc_flux)
-    lc_flux[np.isnan(lc_flux)] = np.random.normal(mu, std, size = np.isnan(lc_flux).sum())
+    rms = np.sqrt(np.nanmean(np.square(lc_flux)))
+    print(std, rms)
+    lc_flux[np.isnan(lc_flux)] = mu 
+    lc_flux = np.random.normal(mu, rms, size = len(lc_flux))
     
     return lc_flux
 
@@ -367,11 +359,6 @@ def preprocess_centroid(lc_local, lc_global):
     # compute r = sqrt(x^2 + y^2) for each centroid location
     local_cen = np.array([get_mag(x,y) for x, y in zip(local_x, local_y)])
     global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
-
-    if np.any(np.isnan(local_cen)):
-        local_cen = add_gaussian_noise(local_cen)
-    if np.any(np.isnan(global_cen)):
-        global_cen = add_gaussian_noise(global_cen)
 
     # normalize by subtracting median and dividing by standard deviation
     normalize_centroid(local_cen)
