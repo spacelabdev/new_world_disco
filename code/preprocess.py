@@ -20,7 +20,7 @@ logger.addHandler(handler)
 
 TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
 LOCAL_DATA_FILE_NAME = 'tess_data.csv'
-DEFAULT_TESS_ID =  '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
+DEFAULT_TESS_ID =   '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 S3_BUCKET = 'preprocess-tess-data-bucket'
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
@@ -29,8 +29,8 @@ LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
 EARTH_RADIUS = 6378.1
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
-global_bin_width_factor = 2001
-local_bin_width_factor = 201
+global_bin_width_factor = 1001
+local_bin_width_factor = 101
 
 def fetch_tess_data_df():
     """
@@ -116,11 +116,10 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
             logger.info(f'{tess_id} global view contains > 0.25 NaNs.')
             return
 
-        lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) )
-
         # fill nans and add gaussian noise
-        if np.any(np.isnan(lc_global.flux)):
-            lc_global.flux = add_gaussian_noise(lc_global.flux)   
+        lc_global.flux = add_gaussian_noise(lc_global.flux) 
+
+        lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) )
 
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_global) == global_bin_width_factor):
@@ -139,12 +138,10 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
             logger.info(f'{tess_id} local view contains > 0.25 NaNs.')
             return
 
-        lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) )
-
         # fill nans and add gaussian noise
-        if np.any(np.isnan(lc_local.flux)):
-            lc_local.flux = add_gaussian_noise(lc_local.flux)        
-            
+        lc_local.flux = add_gaussian_noise(lc_local.flux)
+
+        lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) )        
 
         # sometimes we get the wrong number of bins, so we have to abort
         if not (len(lc_local) == local_bin_width_factor):
@@ -195,9 +192,12 @@ def download_lightcurves(id_string):
 def add_gaussian_noise(lc_flux):
     # Replace nans with median and add guassian noise
     mu = np.nanmedian(lc_flux)
+    print(mu)
     rms = np.sqrt(np.nanmean(np.square(lc_flux)))
-    lc_flux[np.isnan(lc_flux)] = mu 
-    lc_flux = np.random.normal(mu, rms, size = len(lc_flux))
+    std = np.nanstd(lc_flux)
+    print(rms, std)
+    lc_flux[np.isnan(lc_flux)] = mu
+    lc_flux = lc_flux + np.random.normal(mu, rms, size = len(lc_flux))
     
     return lc_flux
 
