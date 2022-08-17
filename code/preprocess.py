@@ -26,12 +26,12 @@ BJD_TO_BCTJD_DIFF = 2457000
 S3_BUCKET = 'preprocess-tess-data-bucket'
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 EXPERIMENTAL_FOLDER = 'experimental/' # folder for planets with unknown status
-LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
+LIGHTKURVE_CACHE_FOLDER = 'D:/lightkurve-cache/'
 EARTH_RADIUS = 6378.1
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
-global_bin_width_factor = 1001
-local_bin_width_factor = 101
+global_bin_width_factor = 201
+local_bin_width_factor = 61
 
 def fetch_tess_data_df():
     """
@@ -113,10 +113,6 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor, n_bins=global_bin_width_factor).normalize() - 1
 
-        if np.sum(np.isnan(lc_global.flux))/len(lc_global.flux) > 0.25:
-            logger.info(f'{tess_id} global view contains > 0.25 NaNs.')
-            return
-
         # fill nans and add gaussian noise
         lc_global.flux = add_gaussian_noise(lc_global.flux) 
 
@@ -135,8 +131,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
         lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor, n_bins=local_bin_width_factor).normalize() - 1
 
-        if np.sum(np.isnan(lc_local.flux))/len(lc_local.flux) > 0.25:
-            logger.info(f'{tess_id} local view contains > 0.25 NaNs.')
+        if np.sum(np.isnan(lc_local.flux))/len(lc_local.flux) > 0.33:
+            logger.info(f'{tess_id} local view contains > 0.33 NaNs.')
             return
 
         # fill nans and add gaussian noise
@@ -176,13 +172,16 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         # export_data_to_s3(global_cen, out, f'{str(tess_id)}_0{int(info[1])}_global_cen')
 
 def download_lightcurves(id_string):
-    q = lk.search_lightcurve(id_string, author=['SPOC','TESS-SPOC'])
-    
-    if len(q) == 0:
-        q = lk.search_lightcurve(id_string, author='QLP')
+    q_1 = lk.search_lightcurve(id_string, author=['SPOC','TESS-SPOC','TASOC'])
+    q_2 = lk.search_lightcurve(id_string, author='QLP')
+
+    if len(q_1) > len(q_2):
+        q = q_1
+    else: 
+        q = q_2
 
     # to increase processing speed we'll remove short cadences
-    if len(q) > 20:
+    if len(q) > 40:
         q = q[q.exptime >= u.Quantity(600, u.s)]
 
     if len(q) == 0:
@@ -350,12 +349,12 @@ def preprocess_centroid(lc_local, lc_global):
     local_cen = np.array([get_mag(x,y) for x, y in zip(local_x, local_y)])
     global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
 
+    local_cen = add_gaussian_noise(local_cen)
+    global_cen = add_gaussian_noise(global_cen)
+
     # normalize by subtracting median and dividing by standard deviation
     normalize_centroid(local_cen)
     normalize_centroid(global_cen)
-
-    local_cen = add_gaussian_noise(local_cen)
-    global_cen = add_gaussian_noise(global_cen)
 
     return local_cen, global_cen
 
