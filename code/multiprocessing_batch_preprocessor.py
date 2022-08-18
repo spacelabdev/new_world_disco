@@ -73,7 +73,7 @@ def fetch_tic_list(num_tic = -1):
 
     return tics.iloc[:num_tic]
 
-def batch_preprocessor(tic):
+def batch_preprocessor(tics):
     """
     Method to preprocess a user-defined number of TESS data objects from the
     TOI catalog.
@@ -90,12 +90,13 @@ def batch_preprocessor(tic):
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        try:
-            preprocess.preprocess_tess_data(tic)
-            
-        except Exception as e:
-            pass
-            #logger.info(f"\nCould not load TIC {tic}. See Error below: \n {e}\n")
+        for tic in tics:
+            try:
+                preprocess.preprocess_tess_data(tic)
+                
+            except Exception as e:
+                pass
+                #logger.info(f"\nCould not load TIC {tic}. See Error below: \n {e}\n")
             
 
 
@@ -115,10 +116,10 @@ if __name__ == "__main__":
     totals = [len(batch) for batch in batches]
 
     # Parallel process the batches
-    result = Parallel(n_jobs=n_workers, verbose=100)(
+    result = Parallel(n_jobs=n_workers, verbose=20)(
         delayed(batch_preprocessor)
-        (val)
-        for batch in batches for val in batch
+        (batch)
+        for batch in batches
     )
     
 
