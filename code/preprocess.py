@@ -175,7 +175,7 @@ def download_lightcurves(id_string):
     q_1 = lk.search_lightcurve(id_string, author=['SPOC','TESS-SPOC','TASOC'])
     q_2 = lk.search_lightcurve(id_string, author='QLP')
 
-    if len(q_1) > len(q_2):
+    if len(q_1) >= len(q_2):
         q = q_1
     else: 
         q = q_2
@@ -243,7 +243,7 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     info[1] = i + 1
 
     # if label is -1, these are unknowns for the experimental set
-    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP']:
+    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP', 'PC']:
         info[2] = 1
     elif threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['FA', 'FP']:
         info[2] = 0
