@@ -155,21 +155,28 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         else:
             out = OUTPUT_FOLDER
 
+
+        for data in [lc_local, lc_global, info, global_cen, local_cen]:
+            if np.any(np.isnan(data)):
+                return
+                
         # export
-        export_lightcurve(lc_local, f"{out+str(tess_id)}_0{int(info[1])}_local")
-        export_lightcurve(lc_global, f"{out+str(tess_id)}_0{int(info[1])}_global")
+        #export_lightcurve(lc_local, f"{out+str(tess_id)}_0{int(info[1])}_local")
+        #export_lightcurve(lc_global, f"{out+str(tess_id)}_0{int(info[1])}_global")
 
-        np.save(f"{out+str(tess_id)}_0{int(info[1])}_info.npy", np.array(info))
+        #np.save(f"{out+str(tess_id)}_0{int(info[1])}_info.npy", np.array(info))
 
         # export
-        np.save(f"{out+str(tess_id)}_0{int(info[1])}_local_cen.npy", local_cen)
-        np.save(f"{out+str(tess_id)}_0{int(info[1])}_global_cen.npy", global_cen)
+        #np.save(f"{out+str(tess_id)}_0{int(info[1])}_local_cen.npy", local_cen)
+        #np.save(f"{out+str(tess_id)}_0{int(info[1])}_global_cen.npy", global_cen)
 
-        # export_data_to_s3(lc_local, out, f'{str(tess_id)}_0{int(info[1])}_local')
-        # export_data_to_s3(lc_global, out, f'{str(tess_id)}_0{int(info[1])}_global')
-        # export_data_to_s3(info, out, f'{str(tess_id)}_0{int(info[1])}_info')
-        # export_data_to_s3(local_cen, out, f'{str(tess_id)}_0{int(info[1])}_local_cen')
-        # export_data_to_s3(global_cen, out, f'{str(tess_id)}_0{int(info[1])}_global_cen')
+        export_data_to_s3(lc_local, out, f'{str(tess_id)}_0{int(info[1])}_local')
+        export_data_to_s3(lc_global, out, f'{str(tess_id)}_0{int(info[1])}_global')
+        export_data_to_s3(info, out, f'{str(tess_id)}_0{int(info[1])}_info')
+        export_data_to_s3(local_cen, out, f'{str(tess_id)}_0{int(info[1])}_local_cen')
+        export_data_to_s3(global_cen, out, f'{str(tess_id)}_0{int(info[1])}_global_cen')
+
+
 
 def download_lightcurves(id_string):
     q_1 = lk.search_lightcurve(id_string, author=['SPOC','TESS-SPOC','TASOC'])
