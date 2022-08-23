@@ -243,9 +243,9 @@ def extract_stellar_parameters(threshold_crossing_events, tess_id, period, durat
     info[1] = i + 1
 
     # if label is -1, these are unknowns for the experimental set
-    if threshold_crossing_events['TESS Disposition'].iloc[i] in ['KP', 'CP']:
+    if threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['KP', 'CP']:
         info[2] = 1
-    elif threshold_crossing_events['TESS Disposition'].iloc[i] in ['FA', 'FP']:
+    elif threshold_crossing_events['TFOPWG Disposition'].iloc[i] in ['FA', 'FP']:
         info[2] = 0
     else:
         info[2] = -1
