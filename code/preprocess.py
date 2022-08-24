@@ -20,13 +20,13 @@ logger.addHandler(handler)
 
 
 TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
-LOCAL_DATA_FILE_NAME = '/home/ubuntu/SpaceLab/new_world_disco/tess_data.csv'
+LOCAL_DATA_FILE_NAME = '/home/ubuntu/SpaceLab/new_world_disco/code/tess_data.csv'
 DEFAULT_TESS_ID =   '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 S3_BUCKET = 'preprocess-tess-data-bucket'
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 EXPERIMENTAL_FOLDER = 'experimental/' # folder for planets with unknown status
-LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
+LIGHTKURVE_CACHE_FOLDER = '/home/ubuntu/SpaceLab/new_world_disco/code/lightkurve-cache/'
 EARTH_RADIUS = 6378.1
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
