@@ -52,9 +52,11 @@ def normalize_stellar_parameters(stellar_parameters_dataframe):
     """
     df_subset = stellar_parameters_dataframe[NORMALIZED_COLUMNS]
 
-    df_subset = (df_subset-df_subset.median())/df_subset.std()
+    if not np.any(np.isnan(df_subset.std())):
 
-    stellar_parameters_dataframe[NORMALIZED_COLUMNS] = df_subset
+        df_subset = (df_subset-df_subset.median())/df_subset.std()
+
+        stellar_parameters_dataframe[NORMALIZED_COLUMNS] = df_subset
 
 def save_normalized_parameters(stellar_paramaters_dataframe):
     stellar_paramaters_dataframe.T.apply(lambda row: np.save(row.name, row.to_numpy()))
