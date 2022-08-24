@@ -15,12 +15,12 @@ logging.captureWarnings(True)
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler('preprocess.log')
+handler = logging.FileHandler('/home/ubuntu/SpaceLab/new_world_disco/preprocess.log')
 logger.addHandler(handler)
 
 
 TESS_DATA_URL = 'https://exofop.ipac.caltech.edu/tess/download_toi.php?sort=toi&output=csv'
-LOCAL_DATA_FILE_NAME = 'tess_data.csv'
+LOCAL_DATA_FILE_NAME = '/home/ubuntu/SpaceLab/new_world_disco/tess_data.csv'
 DEFAULT_TESS_ID =   '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 S3_BUCKET = 'preprocess-tess-data-bucket'

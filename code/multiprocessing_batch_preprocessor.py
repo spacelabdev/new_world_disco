@@ -14,7 +14,7 @@ from joblib import Parallel, delayed
 import preprocess
 
 TOI_CATALOG_URL = 'https://archive.stsci.edu/missions/tess/catalogs/toi/tois.csv'
-TOI_CATALOG_FILENAME = "./tois.csv"
+TOI_CATALOG_FILENAME = "/home/ubuntu/SpaceLab/new_world_disco/code/tois.csv"
 
 logger = logging.getLogger(__name__)
 
