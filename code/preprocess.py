@@ -170,8 +170,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         #np.save(f"{out+str(tess_id)}_0{int(info[1])}_local_cen.npy", local_cen)
         #np.save(f"{out+str(tess_id)}_0{int(info[1])}_global_cen.npy", global_cen)
 
-        export_data_to_s3(lc_local, out, f'{str(tess_id)}_0{int(info[1])}_local')
-        export_data_to_s3(lc_global, out, f'{str(tess_id)}_0{int(info[1])}_global')
+        export_data_to_s3(lc_local.flux, out, f'{str(tess_id)}_0{int(info[1])}_local')
+        export_data_to_s3(lc_global.flux, out, f'{str(tess_id)}_0{int(info[1])}_global')
         export_data_to_s3(info, out, f'{str(tess_id)}_0{int(info[1])}_info')
         export_data_to_s3(local_cen, out, f'{str(tess_id)}_0{int(info[1])}_local_cen')
         export_data_to_s3(global_cen, out, f'{str(tess_id)}_0{int(info[1])}_global_cen')
