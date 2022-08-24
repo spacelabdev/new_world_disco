@@ -26,12 +26,12 @@ BJD_TO_BCTJD_DIFF = 2457000
 S3_BUCKET = 'preprocess-tess-data-bucket'
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
 EXPERIMENTAL_FOLDER = 'experimental/' # folder for planets with unknown status
-LIGHTKURVE_CACHE_FOLDER = 'D:/lightkurve-cache/'
+LIGHTKURVE_CACHE_FOLDER = 'lightkurve-cache/'
 EARTH_RADIUS = 6378.1
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
-global_bin_width_factor = 201
-local_bin_width_factor = 61
+global_bin_width_factor = 1001
+local_bin_width_factor = 101
 
 def fetch_tess_data_df():
     """
@@ -125,14 +125,14 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
 
         # print("Creating local representation")
 
-        phase_mask = (lc_fold.phase > -4*fractional_duration) & (lc_fold.phase < 4.0*fractional_duration)
+        phase_mask = (lc_fold.phase > -5*fractional_duration) & (lc_fold.phase < 5.0*fractional_duration)
         lc_zoom = lc_fold[phase_mask]
 
         # we use 8x fractional duration here since we zoomed in on 4x the fractional duration on both sides
-        lc_local = lc_zoom.bin(time_bin_size=8*fractional_duration/local_bin_width_factor, n_bins=local_bin_width_factor).normalize() - 1
+        lc_local = lc_zoom.bin(time_bin_size=10*fractional_duration/local_bin_width_factor, n_bins=local_bin_width_factor).normalize() - 1
 
-        if np.sum(np.isnan(lc_local.flux))/len(lc_local.flux) > 0.33:
-            logger.info(f'{tess_id} local view contains > 0.33 NaNs.')
+        if np.sum(np.isnan(lc_local.flux))/len(lc_local.flux) > 0.25:
+            logger.info(f'{tess_id} local view contains > 0.25 NaNs.')
             return
 
         # fill nans and add gaussian noise
@@ -151,12 +151,12 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
         if info[2] == -1:
-            out = f'{OUTPUT_FOLDER}/{EXPERIMENTAL_FOLDER}/'
+            out = f'{OUTPUT_FOLDER}{EXPERIMENTAL_FOLDER}'
         else:
             out = OUTPUT_FOLDER
 
 
-        for data in [lc_local, lc_global, info, global_cen, local_cen]:
+        for data in [lc_local.flux, lc_global.flux, info, global_cen, local_cen]:
             if np.any(np.isnan(data)):
                 return
                 
