@@ -15,7 +15,7 @@ logging.captureWarnings(True)
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler('/home/ubuntu/SpaceLab/new_world_disco/preprocess.log')
+handler = logging.FileHandler('/home/ubuntu/SpaceLab/new_world_disco/code/preprocess.log')
 logger.addHandler(handler)
 
 
@@ -114,7 +114,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor, n_bins=global_bin_width_factor).normalize() - 1
 
         # fill nans and add gaussian noise
-        lc_global.flux = add_gaussian_noise(lc_global.flux) 
+        # lc_global.flux = add_gaussian_noise(lc_global.flux) 
+        lc_global.flux[np.isnan(lc_global.flux)] = np.nanmedian(lc_global.flux)
 
         lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) )
 
@@ -136,7 +137,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
             return
 
         # fill nans and add gaussian noise
-        lc_local.flux = add_gaussian_noise(lc_local.flux)
+        #lc_local.flux = add_gaussian_noise(lc_local.flux)
+        lc_local.flux[np.isnan(lc_local.flux)] = np.nanmedian(lc_local.flux)
 
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) )        
 
@@ -156,7 +158,7 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
             out = OUTPUT_FOLDER
 
 
-        for data in [lc_local.flux, lc_global.flux, info, global_cen, local_cen]:
+        for data in [lc_local.flux, lc_global.flux, info, global_cen, local_cen]:            
             if np.any(np.isnan(data)):
                 return
                 
@@ -356,12 +358,16 @@ def preprocess_centroid(lc_local, lc_global):
     local_cen = np.array([get_mag(x,y) for x, y in zip(local_x, local_y)])
     global_cen = np.array([get_mag(x,y) for x, y in zip(global_x, global_y)])
 
-    local_cen = add_gaussian_noise(local_cen)
-    global_cen = add_gaussian_noise(global_cen)
-
     # normalize by subtracting median and dividing by standard deviation
     normalize_centroid(local_cen)
     normalize_centroid(global_cen)
+    
+    local_cen[np.isnan(local_cen)] = np.nanmedian(local_cen)
+    global_cen[np.isnan(global_cen)] = np.nanmedian(global_cen)
+
+    # normalize centroid std by lightcurve std so centroid signal is not dominant
+    local_cen /= (np.nanstd(local_cen)/np.nanstd(np.array(lc_local.flux)))
+    global_cen /= (np.nanstd(global_cen)/np.nanstd(np.array(lc_global.flux)))
 
     return local_cen, global_cen
 
