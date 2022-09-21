@@ -169,10 +169,10 @@ y2_test = load("/home/ubuntu/SpaceLab/new_world_disco/outputs/test_y_data.npy", 
 x2_train = load("/home/ubuntu/SpaceLab/new_world_disco/outputs/train_x_data.npy", allow_pickle=True)
 y2_train = load("/home/ubuntu/SpaceLab/new_world_disco/outputs/train_y_data.npy", allow_pickle=True)
 
-
 # print(x2_val.shape)
 # print(y2_val.shape)
 
+# imports for Functional Keras model
 import tensorflow
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input
@@ -187,13 +187,11 @@ from tensorflow.keras.layers import Flatten
 from tensorflow.keras.layers import Reshape
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras.layers import GaussianNoise
+from tensorflow.keras.layers import RandomFlip
 from tensorflow.keras.optimizers import Adam, Adamax, Nadam, SGD
-from tensorflow.keras.utils import plot_model
+#from tensorflow.keras.utils import plot_model
 
-
-import sklearn
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix
 
 print("Input shapes to the Extranet model:")
 X_LOCAL_SHAPE = data[0][0].shape
@@ -210,78 +208,76 @@ print("Label:", data[1])
 
 FC_LOCAL_OUT_SHAPE = None
 FC_GLOBAL_OUT_SHAPE = None
-R_LEARN = 2e-5
-print("Adam optimizer learning rate:", R_LEARN)
+R_LEARN = 2e-4
+# print("Adam optimizer learning rate:", R_LEARN)
 
-# fully connected global network used for Extranet
-def create_fc_global():
+# fully connected global network used for ExtranetXS
+def create_fc_global_xs():
     in_layer = Input(shape=(X_GLOBAL_SHAPE[0], 2))
     # unclear what the input shape should be
     # extranet has an input of 2 and concatenate the 2 inputs along dim 1
 
+    in_layer = RandomFlip('vertical')(in_layer)
+    in_layer = GaussianNoise(0.3)(in_layer)
+
     fc = Conv1D(16, kernel_size=5, strides=1, padding='same')(in_layer)
+    #fc = BatchNormalization()(fc)
     fc = Activation('relu')(fc)
     fc = Conv1D(16, kernel_size=5, strides=1, padding='same')(fc)
     fc = Activation('relu')(fc)
-    fc = MaxPool1D(pool_size=5, strides=2)(fc)
-    fc = Dropout(.1)(fc)
+    fc = MaxPool1D(pool_size=2, strides=2)(fc)
+    fc = Dropout(.25)(fc)
 
     fc = Conv1D(32, kernel_size=5, strides=1, padding='same')(fc)
     fc = Activation('relu')(fc)
     fc = Conv1D(32, kernel_size=5, strides=1, padding='same')(fc)
     fc = Activation('relu')(fc)
-    fc = MaxPool1D(pool_size=5, strides=2)(fc)
-    fc = Dropout(.1)(fc)
+    fc = MaxPool1D(pool_size=2, strides=2)(fc)
+    fc = Dropout(.25)(fc)
 
     fc = Conv1D(64, kernel_size=5, strides=1, padding='same')(fc)
     fc = Activation('relu')(fc)
     fc = Conv1D(64, kernel_size=5, strides=1, padding='same')(fc)
-    fc = Activation('relu')(fc)
-    fc = MaxPool1D(pool_size=5, strides=2)(fc)
-    fc = Dropout(.1)(fc)
+    #fc = Activation('relu')(fc)
+    #fc = MaxPool1D(pool_size=2, strides=2)(fc)
+    #fc = Dropout(.25)(fc)
 
-    fc = Conv1D(128, kernel_size=5, strides=1, padding='same')(fc)
-    fc = Activation('relu')(fc)
-    fc = Conv1D(128, kernel_size=5, strides=1, padding='same')(fc)
-    fc = Activation('relu')(fc)
-    fc = MaxPool1D(pool_size=5, strides=2)(fc)
-    fc = Dropout(.1)(fc)
+    #fc = Conv1D(128, kernel_size=5, strides=1, padding='same')(fc)
+    #fc = Activation('relu')(fc)
+    #fc = Conv1D(128, kernel_size=5, strides=1, padding='same')(fc)
 
-    fc = Conv1D(256, kernel_size=5, strides=1, padding='same')(fc)
-    fc = Activation('relu')(fc)
-    fc = Conv1D(256, kernel_size=5, strides=1, padding='same')(fc)
-    fc = Activation('relu')(fc)
-    out_layer = MaxPool1D(pool_size=5, strides=2)(fc)
+    out_layer = Activation('relu')(fc)
     
     # save the shape
     FC_GLOBAL_OUT_SHAPE = out_layer.shape
 
-    model = Model(inputs=in_layer, outputs=out_layer, name='fully_connected_global')
+    model = Model(inputs=in_layer, outputs=out_layer, name='fully_connected_global_xs')
     return model, FC_GLOBAL_OUT_SHAPE
 
-fc_global_model, FC_GLOBAL_OUT_SHAPE = create_fc_global()
+fc_global_model, FC_GLOBAL_OUT_SHAPE = create_fc_global_xs()
 fc_global_model.summary()
 print()
 print("Output shape:", FC_GLOBAL_OUT_SHAPE)
 
 # plot_model(fc_global_model, to_file='fc_global_model.jpg', show_shapes=True, show_layer_names=True)
 
-# fully connected local network used for Extranet
+# fully connected global network used for Extranet
 def create_fc_local():
     in_layer = Input(shape=(X_LOCAL_SHAPE[0], 2))
     # unclear what the input shape should be
     # extranet has an input of 2 and concatenate the 2 inputs along dim 1
 
+    in_layer = RandomFlip('vertical')(in_layer)
+    in_layer = GaussianNoise(0.25)(in_layer)
+
     fc = Conv1D(16, kernel_size=5, strides=1, padding='same')(in_layer)
-    #fc = BatchNormalization()(fc)
     fc = Activation('relu')(fc)
     fc = Conv1D(16, kernel_size=5, strides=1, padding='same')(fc)
     fc = Activation('relu')(fc)
     fc = MaxPool1D(pool_size=7, strides=2)(fc)
-    fc = Dropout(.1)(fc)
+    fc = Dropout(.25)(fc)
 
     fc = Conv1D(32, kernel_size=5, strides=1, padding='same')(fc)
-    #fc = BatchNormalization()(fc)
     fc = Activation('relu')(fc)
     fc = Conv1D(32, kernel_size=5, strides=1, padding='same')(fc)
     fc = Activation('relu')(fc)
@@ -299,117 +295,41 @@ fc_local_model.summary()
 
 # plot_model(fc_local_model, to_file='fc_local_model.jpg', show_shapes=True, show_layer_names=True)
 
-def create_final_layer(in_shape=(1969,)):
+def create_final_layer_xs(in_shape=(177,)):
     # fully connected layers that combine local + global and does binary classification
 
     # input shape is flattened fc_local + fc_global + extra star parameters length
-    '''
-    input_length =  FC_LOCAL_OUT_SHAPE[1]  * FC_LOCAL_OUT_SHAPE[2]
-    input_length += FC_GLOBAL_OUT_SHAPE[1] * FC_GLOBAL_OUT_SHAPE[2]
-    input_length += X_STARPARS_SHAPE[0]
-    print("Input length:", input_length)
-    in_layer = Input(shape=(input_length,))
-    '''
     in_layer = Input(shape=in_shape)
-    fc = Dense(256, activation='relu')(in_layer)
-    fc = Dropout(.1)(fc)
-    fc = Dense(256, activation='relu')(fc)
-    fc = Dropout(.1)(fc)
-    fc = Dense(256, activation='relu')(fc)
-    fc = Dropout(.1)(fc)
+    #in_layer = GaussianNoise(0.3)(in_layer)
+    fc = Dense(177, activation='relu')(in_layer)
+    fc = Dropout(.25)(fc)
+    fc = Dense(177, activation='relu')(fc)
+    fc = Dropout(.25)(fc)
+    fc = Dense(177, activation='relu')(fc)
+    fc = Dropout(.25)(fc)
+    #fc = Dense(128, activation='relu')(in_layer)
+    #fc = Dropout(.25)(fc)
+    #fc = Dense(128, activation='relu')(fc)
+    #fc = Dropout(.25)(fc)
+    #fc = Dense(64, activation='relu')(fc)
+    #fc = Dropout(.25)(fc)
+    #fc = Dense(64, activation='relu')(fc)
+    #fc = Dropout(.25)(fc)
+    #fc = Dense(32, activation='relu')(fc)
+    #fc = Dropout(.25)(fc)
+    #fc = Dense(32, activation='relu')(fc)
+    #fc = Dropout(.25)(fc)
+    #fc = Dense(16, activation='relu')(fc)
+    #fc = Dropout(.25)(fc)
+    #fc = Dense(16, activation='relu')(fc)
+    #fc = Dropout(.25)(fc)
     out_layer = Dense(1, activation='sigmoid')(fc)
 
-    model = Model(in_layer, out_layer, name='final_layer_classifier')
+    model = Model(in_layer, out_layer, name='final_layer_classifier_xs')
     return model
 
 final_layer_model = create_final_layer()
 final_layer_model.summary()
-
-# plot_model(final_layer_model, to_file='final_layer.jpg', show_shapes=True, show_layer_names=True)
-
-def ExtranetModelCopy(metrics):
-    '''
-    Extranet Model
-    INPUT: 
-        x_local
-        x_global
-        x_local_cen
-        x_global_cen
-        x_star
-    OUTPUT:
-        model used for binary classification
-    '''
-    print("Creating Extranet model")
-    # read inputs to the model with given shapes
-    x_local = Input(shape=X_LOCAL_SHAPE)
-    x_local_cen = Input(shape=X_LOCAL_CEN_SHAPE)
-
-    x_global = Input(shape=X_GLOBAL_SHAPE)
-    x_global_cen = Input(shape=X_GLOBAL_CEN_SHAPE)
-
-    x_star = Input(shape=X_STARPARS_SHAPE)
-
-    # concatenate inputs respectively
-    x_local_all = Concatenate(axis=1)([x_local, x_local_cen]) # these have to be concatenated to shape (X, 2)
-    x_global_all = Concatenate(axis=1)([x_global, x_global_cen])
-    
-    #checking the shape after concat
-    print("x_local_all.shape", x_local_all.shape)
-    print("x_global_all.shape", x_global_all.shape)
-
-    # reshape the concatenated inputs - **unsure if this reshapes correctly along axis**
-    x_local_all = Reshape(target_shape=(x_local_all.shape[1]//2, 2))(x_local_all)
-    x_global_all = Reshape(target_shape=(x_global_all.shape[1]//2, 2))(x_global_all)
-
-    #checking the shape after concat
-    print("\nShape after reshape")
-    print("x_local_all.shape", x_local_all.shape)
-    print("x_global_all.shape", x_global_all.shape)
-
-    # call corresponding models
-    fc_global, _ = create_fc_global()
-    fc_local, _ = create_fc_local()
-    
-    # get outputs from feeing inputs to the models
-    out_global = fc_global(x_global_all)
-    out_local = fc_local(x_local_all)
-
-    print("\nShape after model outputs")
-    print("out_global.shape", out_global.shape)
-    print("out_local.shape", out_local.shape)
-    
-    # do global pooling
-    '''
-    out_global = GlobalMaxPool1D() (out_global)
-    out_local = GlobalMaxPool1D()(out_local)
-    print("local shape after global pooling:", out_global.shape)
-    '''
-    # skipping global pooling bc the dimensionality reduction doesnt make sense to me now
-
-    # flatten the outputs
-    out_global = Flatten()(out_global)
-    out_local = Flatten()(out_local)
-
-    print("\nShape after flatten outputs")
-    print("out_global.shape", out_global.shape)
-    print("out_local.shape", out_local.shape)
-
-    # concatenate local, global and stellar params
-    out = Concatenate()([out_global, out_local, x_star])
-
-    print("\nConcatenated out shape:", out.shape)
-    print("(Should be", out_global.shape[1], "global +", out_local.shape[1], "local +", x_star.shape[1], 'stellar params)')
-    # pass the flattened length to the input shape
-    final_layer = create_final_layer(in_shape=(out.shape[1],)) # should be 16586
-
-    out = final_layer(out)
-
-    print("\nShape of output after final layer:", out.shape)
-
-    model = Model([x_local, x_global, x_local_cen, x_global_cen, x_star], out, name='Extranet_model')
-    opt = Adam(learning_rate=R_LEARN)
-    model.compile(loss='binary_crossentropy', optimizer=opt, metrics=metrics)
-    return model
 
 METRICS = [
       tensorflow.keras.metrics.TruePositives(name='tp'),
@@ -423,61 +343,7 @@ METRICS = [
       tensorflow.keras.metrics.AUC(name='prc', curve='PR'), # precision-recall curve
 ]
 
-def make_extranet_model(metrics = METRICS, output_bias = None):
-    if output_bias is not None:
-        output_bias = tensorflow.keras.initializers.Constant(output_bias)
-
-    model = ExtranetModelCopy(metrics)
-
-    return model
-
-extranet = make_extranet_model()
-
-extranet.summary()
-
-# plot_model(extranet, to_file='extranet.jpg', show_shapes=True, show_layer_names=True)
-
-# fully connected global network used for ExtranetXS
-def create_fc_global():
-    in_layer = Input(shape=(X_GLOBAL_SHAPE[0], 2))
-    # unclear what the input shape should be
-    # extranet has an input of 2 and concatenate the 2 inputs along dim 1
-
-    fc = Conv1D(16, kernel_size=5, strides=1, padding='same')(in_layer)
-    #fc = BatchNormalization()(fc)
-    fc = Activation('relu')(fc)
-    fc = MaxPool1D(pool_size=2, strides=2)(fc)
-    fc = Dropout(.15)(fc)
-
-    fc = Conv1D(16, kernel_size=5, strides=1, padding='same')(fc)
-    fc = Activation('relu')(fc)
-    fc = MaxPool1D(pool_size=2, strides=2)(fc)
-    fc = Dropout(.15)(fc)
-
-    fc = Conv1D(32, kernel_size=5, strides=1, padding='same')(fc)
-    #fc = BatchNormalization()(fc)
-    out_layer = Activation('relu')(fc)
-    
-    # save the shape
-    FC_GLOBAL_OUT_SHAPE = out_layer.shape
-
-    model = Model(inputs=in_layer, outputs=out_layer, name='fully_connected_global_xs')
-    return model, FC_GLOBAL_OUT_SHAPE
-
-
-def create_final_layer(in_shape=(81,)):
-    # fully connected layers that combine local + global and does binary classification
-
-    # input shape is flattened fc_local + fc_global + extra star parameters length
-    in_layer = Input(shape=in_shape)
-    fc = Dense(81, activation='relu')(in_layer)
-    fc = Dropout(.15)(fc)
-    fc = Dense(81, activation='relu')(fc)
-    fc = Dropout(.15)(fc)
-    out_layer = Dense(1, activation='sigmoid')(fc)
-
-    model = Model(in_layer, out_layer, name='final_layer_classifier_xs')
-    return model
+# plot_model(final_layer_model, to_file='final_layer.jpg', show_shapes=True, show_layer_names=True)
 
 def ExtranetXSModelCopy(metrics):
     '''
@@ -519,7 +385,7 @@ def ExtranetXSModelCopy(metrics):
     print("x_global_all.shape", x_global_all.shape)
 
     # call corresponding models
-    fc_global, _ = create_fc_global()
+    fc_global, _ = create_fc_global_xs()
     fc_local, _ = create_fc_local()
     
     # get outputs from feeing inputs to the models
@@ -551,16 +417,17 @@ def ExtranetXSModelCopy(metrics):
     print("\nConcatenated out shape:", out.shape)
     print("(Should be", out_global.shape[1], "global +", out_local.shape[1], "local +", x_star.shape[1], 'stellar params)')
     # pass the flattened length to the input shape
-    final_layer = create_final_layer(in_shape=(out.shape[1],)) # should be 16586
+    final_layer = create_final_layer_xs(in_shape=(out.shape[1],)) # should be 16586
 
     out = final_layer(out)
 
     print("\nShape of output after final layer:", out.shape)
 
     model = Model([x_local, x_global, x_local_cen, x_global_cen, x_star], out, name='ExtranetXS_model')
-    opt = Adam(learning_rate=R_LEARN)
+    opt = SGD(learning_rate=R_LEARN)
     model.compile(loss='binary_crossentropy', optimizer=opt, metrics=metrics)
     return model
+
 
 def make_extranetxs_model(metrics=METRICS, output_bias=None):
     if output_bias is not None:
@@ -570,20 +437,15 @@ def make_extranetxs_model(metrics=METRICS, output_bias=None):
 
     return model
 
-extranetxs = make_extranetxs_model()
-extranetxs.summary()
+# plot_model(extranet, to_file='extranet.jpg', show_shapes=True, show_layer_names=True)
+
 
 # plot_model(extranetxs, to_file='extranetxs.jpg', show_shapes=True, show_layer_names=True)
 
-NUM_EPOCHS = 250
+NUM_EPOCHS = 1000
 BATCH_SIZE = 32
 
-early_stopping = tensorflow.keras.callbacks.EarlyStopping(
-    monitor='val_loss', 
-    verbose=1, 
-    patience=10, 
-    mode='max', 
-    restore_best_weights=True)
+early_stopping = tensorflow.keras.callbacks.EarlyStopping(monitor='val_loss', verbose=1, patience=50, mode='auto', restore_best_weights=True)
 
 #training_batch = x2_val[:32]
 #extranetxs.train_on_batch(x=[[x[0] for x in training_batch], [x[1] for x in training_batch], [x[2] for x in training_batch], [x[3] for x in training_batch], [x[4] for x in training_batch]] , y=y2_val[:32])
@@ -594,8 +456,8 @@ x_features = [scaler.fit_transform(np.array([x[0] for x in x2_train])),
               scaler.fit_transform(np.array([x[2] for x in x2_train])), 
               scaler.fit_transform(np.array([x[3] for x in x2_train])), 
               scaler.fit_transform(np.array([x[4] for x in x2_train]))]
-# print(x_features.shape)
 
+print(x_features.shape)
 val_features = [
     np.array(scaler.fit_transform([x[0] for x in x2_val])), 
     np.array(scaler.fit_transform([x[1] for x in x2_val])), 
@@ -603,49 +465,41 @@ val_features = [
     np.array(scaler.fit_transform([x[3] for x in x2_val])), 
     np.array(scaler.fit_transform([x[4] for x in x2_val]))
 ]
-
 test_features = [scaler.fit_transform(np.array([x[0] for x in x2_test])), 
               scaler.fit_transform(np.array([x[1] for x in x2_test])), 
               scaler.fit_transform(np.array([x[2] for x in x2_test])), 
               scaler.fit_transform(np.array([x[3] for x in x2_test])), 
               scaler.fit_transform(np.array([x[4] for x in x2_test]))]
 
-pos, neg = np.bincount(y)
+
+neg, pos = np.bincount(y)
+
 total = pos+neg
-weight_for_1 = (1/neg)*(total/2.0)
-weight_for_0 = (1/pos)*(total/2.0)
+weight_for_0 = (1/neg)*(total/2.0)
+weight_for_1 = (1/pos)*(total/2.0)
+
 
 class_weight = {0:weight_for_0, 1:weight_for_1}
 
+weighted_model = make_extranetxs_model()
 
-
-weighted_model = make_extranet_model()
-
-history = weighted_model.fit(
+weighted_history = weighted_model.fit(
     x_features,
     y2_train,
     batch_size=BATCH_SIZE,
     epochs=NUM_EPOCHS,
     validation_data=(val_features, y2_val),
+    callbacks=[early_stopping],
     # The class weights go here
     class_weight=class_weight)
 
-
-
-#print(history)
-
-test_output = weighted_model.predict(test_features)
-
-test_gt = y2_test.astype(None).ravel()
-test_output = test_output.astype(None).ravel()
-save("/home/ubuntu/SpaceLab/new_world_disco/code/outputs/train_y_output.npy", val_output)
-
+import matplotlib
+import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import average_precision_score
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
-from sklearn.metrics import roc_curve
 from sklearn.metrics import PrecisionRecallDisplay
 from sklearn.metrics import RocCurveDisplay
 
