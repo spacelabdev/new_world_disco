@@ -11,7 +11,7 @@ Her work was an improvement upon the prior work of Dr. Andrew Vanderburg and Chr
 ### Datasets
 The dataset to start out with if you are using the exonet.py program can be found <a href='https://drive.google.com/file/d/1N6bA2rahvV5kcOGmJnTA5gl_Thno7hTh/view'>here</a>. You should download and unzip these files in a nearby directory for easy use.
 
-You should use Lightkurve.org to pull new data for this project. As time goes on, there will be more tutorial-like resources availble to help you preprocess the data, but in gerneral, see the papers from Ansdell et al and Vanderburg et al cited below as they walk you through how to prepare your data pipeline for model training and inference.
+You should use Lightkurve.org to pull new data for this project. As time goes on, there will be more tutorial-like resources availble to help you preprocess the data, but in general, see the papers from Ansdell et al and Vanderburg et al cited below as they walk you through how to prepare your data pipeline for model training and inference.
 
 ### Cite if you use this code
 If you want to use this code in your work, please cite in the comments of your code where it came from in case anyone else stumbles upon your repo, they should know where it came from. If you plan to use this code in any scholastic or professional work or wish to publish, you must fully cite the following papers and sources:
