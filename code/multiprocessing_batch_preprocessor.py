@@ -1,14 +1,26 @@
 import os
 
+import logging
 import datetime
 import pandas as pd
 import requests
 from dateutil.parser import parse as parsedate
+import math
+import warnings
+
+
+from joblib import Parallel, delayed
 
 import preprocess
 
 TOI_CATALOG_URL = 'https://archive.stsci.edu/missions/tess/catalogs/toi/tois.csv'
-TOI_CATALOG_FILENAME = "./tois.csv"
+TOI_CATALOG_FILENAME = "/home/ubuntu/SpaceLab/new_world_disco/code/tois.csv"
+
+logger = logging.getLogger(__name__)
+
+logger.setLevel(logging.INFO)
+handler = logging.FileHandler('batch_preprocess.log')
+logger.addHandler(handler)
 
 def fetch_tic_list(num_tic = -1):
     """
@@ -75,24 +87,40 @@ def batch_preprocessor(tics):
     Returns: number of TOIs successfully processed.
     """
 
-    num_processed = 0
 
-    num_tic = len(tics)
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        for tic in tics:
+            try:
+                preprocess.preprocess_tess_data(tic)
+                
+            except Exception as e:
+                pass
+                #logger.info(f"\nCould not load TIC {tic}. See Error below: \n {e}\n")
+            
 
-
-    for i, tic in enumerate(tics):
-        print(f'{i+1}/{num_tic}')
-        try:
-            preprocess.preprocess_tess_data(tic)
-            num_processed += 1
-        except Exception as e:
-            print(f"\nCould not load TIC {tic}. See Error below: \n {e}\n")
-
-    print(f"\n{num_processed} of {num_tic} TESS Objects of Interest processed.")
-
-    return num_processed
 
 if __name__ == "__main__":
-        
-    tics = fetch_tic_list()
-    batch_preprocessor(tics)
+    
+    items = fetch_tic_list()
+    n_workers = 12
+
+    # Divide data in batches
+    batch_size = math.ceil(len(items) / n_workers)
+    batches = [
+        items[ix:ix+batch_size]
+        for ix in range(0, len(items), batch_size)
+    ]
+
+    
+    totals = [len(batch) for batch in batches]
+
+    # Parallel process the batches
+    result = Parallel(n_jobs=n_workers, verbose=20)(
+        delayed(batch_preprocessor)
+        (batch)
+        for batch in batches
+    )
+    
+
+    
