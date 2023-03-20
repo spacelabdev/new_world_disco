@@ -22,6 +22,7 @@ LOCAL_DATA_FILE_NAME = 'tess_data.csv'
 DEFAULT_TESS_ID = '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
+subFolders = ['tic_info/', 'locGlo_flux/', 'locGlo_cent/']
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
 global_bin_width_factor = 201
@@ -43,7 +44,7 @@ def fetch_tess_data_df():
         f.write(tess_data_raw)
     return pd.read_csv(io.BytesIO(tess_data_raw))
 
-def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
+def preprocess_tess_data(tess_id, data_df):
     """
     Method for preprocessing TESS data.
 
@@ -58,12 +59,13 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     Input: tess_id = TESS Input Catalog (TIC) identifier.
     """
 
-
+    print(tess_id)
     # Download and stitch all lightcurve quarters together.
     id_string = f'TIC {tess_id}'
     
     # print("Loading lightcurves")
-
+    # This is the section of the code that is causing problems
+    # the .download_all()
     q = lk.search_lightcurve(id_string)
     lcs = q.download_all()
 
@@ -74,7 +76,8 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
     # print("Fetching period and duration")
 
     # Fetch period and duration data from caltech exofop for tess
-    data_df = fetch_tess_data_df()
+    # Commented this line of code out from the orginal script
+    # data_df = fetch_tess_data_df()
 
     threshold_crossing_events = data_df[data_df['TIC ID'] == int(tess_id)]
 
@@ -165,11 +168,11 @@ def preprocess_tess_data(tess_id=DEFAULT_TESS_ID):
         export_lightcurve(lc_local, f"{tess_id}_0{i+1}_local")
         export_lightcurve(lc_global, f"{tess_id}_0{i+1}_global")
 
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_info.npy", np.array(info))
+        np.save(f"{OUTPUT_FOLDER+subFolders[0]+str(tess_id)}_0{i+1}_info.npy", np.array(info))
 
         # export
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_local_cen.npy", local_cen)
-        np.save(f"{OUTPUT_FOLDER+str(tess_id)}_0{i+1}_global_cen.npy", global_cen)
+        np.save(f"{OUTPUT_FOLDER+subFolders[2]+str(tess_id)}_0{i+1}_local_cen.npy", local_cen)
+        np.save(f"{OUTPUT_FOLDER+subFolders[2]+str(tess_id)}_0{i+1}_global_cen.npy", global_cen)
 
 
 
@@ -185,8 +188,12 @@ def export_lightcurve(lc, filename):
     if not os.path.isdir(OUTPUT_FOLDER):
         os.mkdir(os.path.join(os.getcwd(), OUTPUT_FOLDER))
 
+    for subfolder in subFolders:
+        if not os.path.isdir(subfolder):
+            os.makedirs(os.path.join(OUTPUT_FOLDER, subfolder), exist_ok=True)
+
 #   lc.to_csv(f"./data/{filename}.csv", overwrite=True)
-    np.save(f"{OUTPUT_FOLDER+str(filename)}_flux.npy", np.array(lc['flux']))
+    np.save(f"{OUTPUT_FOLDER+subFolders[1]+str(filename)}_flux.npy", np.array(lc['flux']))
 
 
 ### Centroid Preprocessing
