@@ -15,10 +15,7 @@ tess_data = preprocess.fetch_tess_data_df()
 for index, row in tess_data.iterrows():
     tic_id = str(row['TIC ID'])
     preprocess.preprocess_tess_data(tic_id, tess_data)
-    #preprocess.preprocess_tess_data('2016376984', tess_data)
-    break
-    if (index == 3):
-        break
+   
     
 
 '''
