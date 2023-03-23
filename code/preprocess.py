@@ -22,7 +22,10 @@ LOCAL_DATA_FILE_NAME = 'tess_data.csv'
 DEFAULT_TESS_ID = '2016376984' # a working 'v-shaped' lightcurve. Eventually we'll need to run this for all lightcurves from tess
 BJD_TO_BCTJD_DIFF = 2457000
 OUTPUT_FOLDER = 'tess_data/' # modified to save to different output folder
-subFolders = ['tic_info/', 'locGlo_flux/', 'locGlo_cent/']
+subFolders = ['tic_info/', 'locGlo_flux/', 'locGlo_cent/'] #sub folders within the main output folder
+# A list of all the valid authors that are supported by
+# lightkurves searches and downloads
+valid_authors = ["Kepler","K2", "SPOC","TESS-SPOC","QLP","TASOC","PATHOS","CDIPS","K2SFF","EVEREST","TESScut","GSFC-ELEANOR-LITE"]
 
 # these bin numbers for TESS from Yu et al. (2019) section 2.3: https://iopscience.iop.org/article/10.3847/1538-3881/ab21d6/pdf
 global_bin_width_factor = 201
@@ -59,23 +62,38 @@ def preprocess_tess_data(tess_id, data_df):
     Input: tess_id = TESS Input Catalog (TIC) identifier.
     """
 
-    print(tess_id)
     # Download and stitch all lightcurve quarters together.
     id_string = f'TIC {tess_id}'
     
     # print("Loading lightcurves")
-    # This is the section of the code that is causing problems
-    # the .download_all()
+    
     q = lk.search_lightcurve(id_string)
-    lcs = q.download_all()
+    
+    
+    # Stores all of the authors from different observations
+    # For a given 
+    authors_column = q.table['author']
 
-    # print("Stitching lightcurves")
+    # Creates a boolean mask for rows where all authors are valid
+    valid_authors_mask = [all(author in valid_authors for author in authors.split(','))
+                      for authors in authors_column]
+
+    # Select only the rows where all authors are valid
+    # Allows us to remove rows that have unsupported authors
+    search_result = q[valid_authors_mask]
+    
+    # Downloading the Lightkurve data
+    lcs = search_result.download_all()
+    
+    # TO DO: need to figure out how to work around
+    # .stitch() so it does not remove the SAP columns in the data table
+    # column types are incompatible: {'sap_bkg', 'sap_bkg_err', 'sap_flux'}
 
     lc_raw = lcs.stitch()
 
-    # print("Fetching period and duration")
-
+    
     # Fetch period and duration data from caltech exofop for tess
+
     # Commented this line of code out from the orginal script
     # data_df = fetch_tess_data_df()
 
@@ -124,7 +142,7 @@ def preprocess_tess_data(tess_id, data_df):
 
         lc_clean = lc_raw.remove_outliers(sigma=3)
 
-        # print("Masking hack")
+        
 
         # Do the hacky masking from here: https://docs.lightkurve.org/tutorials/3-science-examples/exoplanets-machine-learning-preprocessing.html
         temp_fold = lc_clean.fold(period, epoch_time=t0)
@@ -139,7 +157,7 @@ def preprocess_tess_data(tess_id, data_df):
         lc_fold = lc_flat.fold(period, epoch_time=t0)
 
         # print("Creating global representation")
-
+       
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor).normalize() - 1
         if not (len(lc_global) == global_bin_width_factor):
             logger.info(f'{tess_id} lc_global incorrect dimension: {len(lc_global)}')
@@ -160,7 +178,7 @@ def preprocess_tess_data(tess_id, data_df):
 
 
         # print(lc_local.dtype.names)
-
+        
         # add centroid preprocessing
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
@@ -188,6 +206,7 @@ def export_lightcurve(lc, filename):
     if not os.path.isdir(OUTPUT_FOLDER):
         os.mkdir(os.path.join(os.getcwd(), OUTPUT_FOLDER))
 
+    # Creating the subfolder, if needed
     for subfolder in subFolders:
         if not os.path.isdir(subfolder):
             os.makedirs(os.path.join(OUTPUT_FOLDER, subfolder), exist_ok=True)
@@ -233,8 +252,19 @@ def preprocess_centroid(lc_local, lc_global):
         local_x = np.array([float(x/u.pix) for x in lc_local['sap_x']])
         local_y = np.array([float(y/u.pix) for y in lc_local['sap_y']])
     else:
-        # TO DO: check for centroid_row, centroid_col and do any preprocessing they might require
-        logger.info("Error: preprocess_centroid(): No handling for centroid data not stored in sap_x, sap_y")
+        # TO DO checking for centroid_row, centroid_col and performing preprocessing the data 
+        '''
+        centroid_global_cond = 'centroid_row' in lc_global.columns and 'centroid_col' in lc_global.columns
+        centroid_local_cond = 'centroid_row' in lc_global.columns and 'centroid_col' in lc_global.columns
+        if centroid_global_cond and centroid_local_cond:
+            # remove the pix dimension...keeeping same name convention
+            cent_row_global = np.array([float(row/u.pix) for row in lc_global['centroid_row']])
+            cent_col_global = np.array([float(col/u.pix) for col in lc_global['centroid_col']])
+            cent_row_local = np.array([float(row/u.pix) for row in lc_local['centroid_row']])
+            cent_col_local = np.array([float(col/u.pix) for col in lc_local['centroid_col']])
+        else:
+        '''
+        logger.info("Error: preprocess_centroid(): No handling for centroid data not stored in sap_x, sap_y or centroid_row, centroid_col")
         return
 
     # compute r = sqrt(x^2 + y^2) for each centroid location
