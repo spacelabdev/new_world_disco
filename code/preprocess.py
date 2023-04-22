@@ -9,6 +9,8 @@ import requests
 import math
 from astropy import units as u
 import warnings
+from astropy.table import QTable
+
 
 
 logger = logging.getLogger(__name__)
@@ -65,7 +67,7 @@ def preprocess_tess_data(tess_id, data_df):
     # Download and stitch all lightcurve quarters together.
     id_string = f'TIC {tess_id}'
     
-    # print("Loading lightcurves")
+    print("Loading lightcurves")
     
     q = lk.search_lightcurve(id_string)
     
@@ -85,17 +87,55 @@ def preprocess_tess_data(tess_id, data_df):
     # Downloading the Lightkurve data
     lcs = search_result.download_all()
     
-    # TO DO: need to figure out how to work around
-    # .stitch() so it does not remove the SAP columns in the data table
     # column types are incompatible: {'sap_bkg', 'sap_bkg_err', 'sap_flux'}
+    #Feeds into preprocess_centroid section/function
+
+    
+    list_of_lcs_dfs = [] #Initialize list to hold df's
+    print("Converting lightcurves to dataframes")
+    for i in range(len(lcs)):
+        lcs_df = lcs[i].to_pandas() #Convert lightcurve at index i to pandas df
+        list_of_lcs_dfs.append(lcs_df) #Append df to list
+    
+    new_df = ''
+    if len(lcs) == 1:
+        new_df = list_of_lcs_dfs[0] #If the length is 1, then use only that df
+    elif len(lcs) == 2:
+        new_df = pd.concat([list_of_lcs_dfs[0], list_of_lcs_dfs[1]], axis=0, join="outer") #If length is 2, concat df's together
+    elif len(lcs) > 2:
+        new_df = pd.concat([list_of_lcs_dfs[0], list_of_lcs_dfs[1]], axis=0, join="outer") #Initialize
+        for j in range(2, len(lcs)):
+            new_df = pd.concat([new_df, list_of_lcs_dfs[j]], axis=0, join="outer") #Concat each subsequent df
+        
+    new_df.sort_index(inplace=True) #Sort the time index
+    new_df = new_df[['sap_bkg_err', 'sap_bkg', 'sap_flux', 'sap_x', 'sap_y', 'centroid_row', 'centroid_col']]
+
+    #Note for potential optimizing:
+    #Filter new_df columns to include only the following:
+    #[time, flux, flux_err, cadenceno, quality, sap_bkg_err, sap_bkg, sap_flux, sap_x, sap_y, centroid_row, centroid_col]
+
+    q_table = QTable.from_pandas(new_df, index=True) #Convert the dataframe into a QTable
+    lc_temp = lk.LightCurve(data=q_table) #Convert the QTable into a LightCurve object
+
+    
 
     lc_raw = lcs.stitch()
-
+    #stitch eliminates sap and centroid columns
+    
+    #Try converting lc_raw and lc_temp to dfs, concatenate, convert back to lc objects, and normalize
+    lc_raw_df = lc_raw.to_pandas()
+    lc_temp_df = lc_temp.to_pandas()
+    lc_temp_df.drop(columns=['flux', 'flux_err'], inplace=True)
+    joined_df = lc_raw_df.join(lc_temp_df, how='outer')
+    joined_df.sort_index(inplace=True)
+    q_table_2 = QTable.from_pandas(joined_df, index=True)
+    lc_concat = lk.LightCurve(data=q_table_2)
     
     # Fetch period and duration data from caltech exofop for tess
 
-    # Commented this line of code out from the orginal script
-    # data_df = fetch_tess_data_df()
+    
+
+    print("Extracting stellar parameters")
 
     threshold_crossing_events = data_df[data_df['TIC ID'] == int(tess_id)]
 
@@ -138,9 +178,9 @@ def preprocess_tess_data(tess_id, data_df):
             info[11] = pd.read_csv(stellar_params_link, sep='|')['Fitted Stellar Density (g/cm3)'].dropna().iloc[0].item()\
 
 
-        # print("Processing outliers")
+        print("Processing outliers")
 
-        lc_clean = lc_raw.remove_outliers(sigma=3)
+        lc_clean = lc_concat.remove_outliers(sigma=3)
 
         
 
@@ -151,12 +191,12 @@ def preprocess_tess_data(tess_id, data_df):
         transit_mask = np.in1d(lc_clean.time.value, temp_fold.time_original.value[phase_mask])
 
 
-        # print("Flattening lightcurve")
+        print("Flattening lightcurve")
 
         lc_flat = lc_clean.flatten(mask=transit_mask)
         lc_fold = lc_flat.fold(period, epoch_time=t0)
 
-        # print("Creating global representation")
+        print("Creating global representation")
        
         lc_global = lc_fold.bin(time_bin_size=period/global_bin_width_factor).normalize() - 1
         if not (len(lc_global) == global_bin_width_factor):
@@ -164,7 +204,7 @@ def preprocess_tess_data(tess_id, data_df):
             return
         lc_global = (lc_global / np.abs(np.nanmin(lc_global.flux)) ) * 2.0 + 1
 
-        # print("Creating local representation")
+        print("Creating local representation")
 
         phase_mask = (lc_fold.phase > -4*fractional_duration) & (lc_fold.phase < 4.0*fractional_duration)
         lc_zoom = lc_fold[phase_mask]
@@ -177,12 +217,14 @@ def preprocess_tess_data(tess_id, data_df):
         lc_local = (lc_local / np.abs(np.nanmin(lc_local.flux)) ) * 2.0 + 1
 
 
-        # print(lc_local.dtype.names)
+        
         
         # add centroid preprocessing
+        print("Preprocessing centroid")
         local_cen, global_cen = preprocess_centroid(lc_local, lc_global)
         
         # export
+        print("Exporting lightcurves")
         export_lightcurve(lc_local, f"{tess_id}_0{i+1}_local")
         export_lightcurve(lc_global, f"{tess_id}_0{i+1}_global")
 
@@ -247,10 +289,10 @@ def preprocess_centroid(lc_local, lc_global):
     sap_local_condition = 'sap_x' in lc_local.columns and 'sap_y' in lc_local.columns
     if sap_global_condition and sap_local_condition:
         # remove the pix dimension
-        global_x = np.array([float(x/u.pix) for x in lc_global['sap_x']])
-        global_y = np.array([float(y/u.pix) for y in lc_global['sap_y']])
-        local_x = np.array([float(x/u.pix) for x in lc_local['sap_x']])
-        local_y = np.array([float(y/u.pix) for y in lc_local['sap_y']])
+        global_x = np.array([float(x*u.pix/u.pix) for x in lc_global['sap_x']])
+        global_y = np.array([float(y*u.pix/u.pix) for y in lc_global['sap_y']])
+        local_x = np.array([float(x*u.pix/u.pix) for x in lc_local['sap_x']])
+        local_y = np.array([float(y*u.pix/u.pix) for y in lc_local['sap_y']])
     else:
         # TO DO checking for centroid_row, centroid_col and performing preprocessing the data 
         '''
