@@ -48,13 +48,8 @@ def fetch_tess_data_df():
     the existing file will expand to include the newer data.
     """
 
-    #if os.path.isfile(LOCAL_DATA_FILE_NAME):
-        #return pd.read_csv(LOCAL_DATA_FILE_NAME)
-    res = requests.get(TESS_DATA_URL)
-    tess_data_raw = res.content
-    with open(LOCAL_DATA_FILE_NAME, 'wb+') as f:
-        f.write(tess_data_raw)
-    return pd.read_csv(io.BytesIO(tess_data_raw))
+    if os.path.isfile(LOCAL_DATA_FILE_NAME):
+        return pd.read_csv(LOCAL_DATA_FILE_NAME)
 
 def preprocess_tess_data(tess_id, data_df):
     """
@@ -338,20 +333,23 @@ if __name__ == "__main__":
 
     for index, row in tess_data.iterrows():
         tic_id = str(row['TIC ID'])
+        print("#"*30)
         print("Working on TIC_ID " + tic_id)
         print("#"*30)
 
-        with stopit.ThreadingTimeout(120) as context_manager: #Set max number of seconds to work on one lightcurve
+        with stopit.ThreadingTimeout(90) as context_manager: #Set max number of seconds to work on one lightcurve
             try:
                 preprocess_tess_data(tic_id, tess_data)
             except:
                 preprocess_results[tic_id] = 'ERROR' #Indicates that an error was thrown somewhere
+                print("Error thrown")
                 continue
 
-        if context_manager.state == context_manager.EXECUTED: #Indicates preprocessing finished in under 120 seconds (2 min)
-            preprocess_results[tic_id] = "COMPLETE"
-        elif context_manager.state == context_manager.TIMED_OUT: #Indicates timed out or possible error 
-            preprocess_results[tic_id] = "UNFINISHED"   
+        #if context_manager.state == context_manager.EXECUTED: #Indicates preprocessing finished in under given number of seconds
+            #preprocess_results[tic_id] = "COMPLETE"
+        if context_manager.state == context_manager.TIMED_OUT: #Indicates timed out or possible error 
+            preprocess_results[tic_id] = 'UNFINISHED'
+            print("Timed out")
 
     print("Preprocessing finished")
 
@@ -380,7 +378,10 @@ if __name__ == "__main__":
     #Optional step: write preprocess_results dictionary to csv file on EC2 instance
     #For inspecting which TESS id's timed out or threw errors
     #Upload to S3 bucket?
+    header = ['tess_id', 'result']
+
     with open('/home/ubuntu/spaceLab/tess_id_results.csv', 'w') as f:
         writer = csv.writer(f)
+        writer.writerow(header)
         for k, v in preprocess_results.items():
             writer.writerow([k, v])
